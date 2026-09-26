@@ -34,7 +34,7 @@ $$;
 
 create table company (
   id          uuid primary key default gen_random_uuid(),
-  owner_id    uuid not null references auth.users (id) on delete cascade,
+  owner_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name        text not null check (char_length(name) between 1 and 120),
   site        text,
   created_at  timestamptz not null default now(),
@@ -43,7 +43,7 @@ create table company (
 
 create table vacancy (
   id              uuid primary key default gen_random_uuid(),
-  owner_id        uuid not null references auth.users (id) on delete cascade,
+  owner_id        uuid not null default auth.uid() references auth.users (id) on delete cascade,
   company_id      uuid not null references company (id) on delete restrict,
   external_ref    text not null check (external_ref ~ '^[a-z0-9-]{2,80}$'),
   title           text not null check (char_length(title) between 1 and 200),
@@ -76,7 +76,7 @@ create table vacancy_status_history (
 
 create table message (
   id           uuid primary key default gen_random_uuid(),
-  owner_id     uuid not null references auth.users (id) on delete cascade,
+  owner_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
   company_id   uuid references company (id) on delete set null,
   vacancy_id   uuid references vacancy (id) on delete set null,
   source       message_source not null,
@@ -97,7 +97,7 @@ create table message (
 
 create table discipline (
   id        uuid primary key default gen_random_uuid(),
-  owner_id  uuid not null references auth.users (id) on delete cascade,
+  owner_id  uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name      text not null check (char_length(name) between 1 and 200),
   teacher   text check (char_length(teacher) <= 200),
   unique (owner_id, name)
@@ -105,7 +105,7 @@ create table discipline (
 
 create table study_work (
   id             uuid primary key default gen_random_uuid(),
-  owner_id       uuid not null references auth.users (id) on delete cascade,
+  owner_id       uuid not null default auth.uid() references auth.users (id) on delete cascade,
   discipline_id  uuid not null references discipline (id) on delete restrict,
   code           text not null check (code ~ '^[a-z0-9-]{2,60}$'),
   title          text not null check (char_length(title) between 1 and 300),
@@ -122,7 +122,7 @@ create table study_work (
 
 create table schedule_snapshot (
   id           uuid primary key default gen_random_uuid(),
-  owner_id     uuid not null references auth.users (id) on delete cascade,
+  owner_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
   group_code   text not null check (char_length(group_code) <= 40),
   source_hash  text not null,
   captured_at  timestamptz not null,
@@ -139,7 +139,7 @@ create unique index schedule_one_current
 
 create table task (
   id           uuid primary key default gen_random_uuid(),
-  owner_id     uuid not null references auth.users (id) on delete cascade,
+  owner_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
   external_id  text check (char_length(external_id) <= 120),
   title        text not null check (char_length(title) between 1 and 200),
   due_date     date not null,
@@ -156,7 +156,7 @@ create table task (
 
 create table flashcard (
   id          uuid primary key default gen_random_uuid(),
-  owner_id    uuid not null references auth.users (id) on delete cascade,
+  owner_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
   topic       text not null check (char_length(topic) <= 60),
   question    text not null check (char_length(question) between 1 and 500),
   answer      text not null check (char_length(answer) between 1 and 2000),
@@ -179,7 +179,7 @@ create table card_review (
 
 create table agent_client (
   id            uuid primary key default gen_random_uuid(),
-  owner_id      uuid not null references auth.users (id) on delete cascade,
+  owner_id      uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name          text not null check (name ~ '^[a-z0-9-]{3,40}$'),
   token_sha256  bytea not null unique,
   scopes        text[] not null,
@@ -214,7 +214,7 @@ create table idempotency_key (
 
 create table push_subscription (
   id               uuid primary key default gen_random_uuid(),
-  owner_id         uuid not null references auth.users (id) on delete cascade,
+  owner_id         uuid not null default auth.uid() references auth.users (id) on delete cascade,
   endpoint         text not null unique,
   p256dh           text not null,
   auth_secret      text not null,
@@ -225,7 +225,7 @@ create table push_subscription (
 
 create table notification (
   id           uuid primary key default gen_random_uuid(),
-  owner_id     uuid not null references auth.users (id) on delete cascade,
+  owner_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
   message_id   uuid references message (id) on delete set null,
   channel      notify_channel not null default 'webpush',
   title        text not null check (char_length(title) <= 120),
