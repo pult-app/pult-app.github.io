@@ -12,7 +12,13 @@ export const supabase = createClient(url ?? 'http://localhost', key ?? 'missing'
 const CACHE = 'pult-cache-v1'
 
 export function readCache(): PultData | null {
-  try { const raw = localStorage.getItem(CACHE); return raw ? JSON.parse(raw) as PultData : null } catch { return null }
+  try {
+    const raw = localStorage.getItem(CACHE)
+    if (!raw) return null
+    // Кэш мог сохранить старая версия приложения: новые поля добиваем пустыми значениями.
+    const d = JSON.parse(raw) as Partial<PultData>
+    return { ...d, requests: d.requests ?? [] } as PultData
+  } catch { return null }
 }
 function writeCache(d: PultData) {
   try { localStorage.setItem(CACHE, JSON.stringify(d)) } catch { /* кэш необязателен */ }
