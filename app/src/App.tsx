@@ -11,12 +11,16 @@ import { Study } from './components/Study'
 import { Trainer } from './components/Trainer'
 import { Stats } from './components/Stats'
 import { PushToggle } from './components/PushToggle'
+import { Icons } from './components/icons'
+import { weekInfo } from './lib/schedule'
 
 export type Tab = 'today' | 'funnel' | 'inbox' | 'study' | 'train' | 'stats'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'today', label: 'Сегодня' }, { id: 'funnel', label: 'Воронка' }, { id: 'inbox', label: 'Входящие' },
   { id: 'study', label: 'Учёба' }, { id: 'train', label: 'Тренажёр' }, { id: 'stats', label: 'Аналитика' },
 ]
+
+const SHORT: Record<Tab, string> = { today: 'Сегодня', funnel: 'Воронка', inbox: 'Письма', study: 'Учёба', train: 'Карточки', stats: 'Цифры' }
 
 function initialTab(): Tab {
   const h = location.hash.slice(1) as Tab
@@ -158,6 +162,7 @@ export default function App() {
   const runAgeH = runAt && data ? (Date.parse(data.loadedAt) - Date.parse(runAt)) / 36e5 : null
   const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })
   const loaded = data ? hhmm(data.loadedAt) : ''
+  const week = data?.schedule ? weekInfo(new Date(t + 'T12:00:00')) : null
 
   const badges: Partial<Record<Tab, { n: number; hot: boolean }>> = data ? {
     inbox: { n: data.messages.filter(m => !m.is_done && m.kind !== 'ack').length, hot: data.messages.some(m => !m.is_done && ['invite', 'test', 'offer', 'question'].includes(m.kind)) },
@@ -185,17 +190,22 @@ export default function App() {
 
   return (
     <div className="wrap">
-      <header>
-        <div>
-          <h1>Пульт</h1>
-          <p className="sub">{greet}</p>
+      <header className="hero">
+        <div className="hero-top">
+          <div>
+            <h1>Пульт</h1>
+            <p className="greet">{greet}</p>
+          </div>
+          <div className="hero-actions">
+            <PushToggle />
+            <button className="icon-btn" title="Выйти" aria-label="Выйти" onClick={() => { clearCache(); supabase.auth.signOut() }}>{Icons.logout}</button>
+          </div>
         </div>
-        <div className="hdr-right">
-          <span className={'status-line' + (offline ? ' off' : runAgeH !== null && runAgeH > 12 ? ' stale' : '')}>
-            {offline ? `офлайн, данные на ${loaded}` : runAt ? `агент обновил ${fmtDate(runAt.slice(0, 10))} в ${hhmm(runAt)}` : loaded ? `данные на ${loaded}` : ''}
+        <div className="hero-chips">
+          {week && <span className="hchip">{week.num}-я неделя · {week.numerator ? 'числитель' : 'знаменатель'}</span>}
+          <span className={'hchip' + (offline ? ' off' : runAgeH !== null && runAgeH > 12 ? ' warn' : '')}>
+            {offline ? `офлайн, данные на ${loaded}` : runAt ? `агент: ${fmtDate(runAt.slice(0, 10))} ${hhmm(runAt)}` : loaded ? `данные на ${loaded}` : 'загрузка'}
           </span>
-          <PushToggle />
-          <button className="linkbtn" onClick={() => { clearCache(); supabase.auth.signOut() }}>выйти</button>
         </div>
       </header>
 
@@ -228,6 +238,17 @@ export default function App() {
       </>}
 
       {data && <PasswordBox />}
+
+      <nav className="bnav" role="tablist" aria-label="Разделы">
+        {TABS.map(x => {
+          const b = badges[x.id]
+          return (
+            <button key={x.id} role="tab" aria-selected={tab === x.id} onClick={() => setTab(x.id)}>
+              {Icons[x.id]}<span>{SHORT[x.id]}</span>
+              {b && b.n > 0 && <span className={'dot' + (b.hot ? ' hot' : '')}>{b.n}</span>}
+            </button>)
+        })}
+      </nav>
 
       <p className="note">Данные приносит Claude: почта и hh.ru в 9:00, 14:00 и 20:00. Статусы и отметки можно менять здесь.</p>
     </div>

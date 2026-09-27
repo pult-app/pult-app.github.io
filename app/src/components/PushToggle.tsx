@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { disablePush, enablePush, pushState, type PushState } from '../lib/push'
+import { Icons } from './icons'
 
 const LABEL: Record<PushState, string> = {
-  unsupported: 'пуши не поддерживаются',
-  'need-install': 'пуши: добавь на экран «Домой»',
-  denied: 'пуши запрещены в настройках',
-  off: 'включить пуши',
-  on: 'пуши включены',
+  unsupported: 'Пуши не поддерживаются этим браузером',
+  'need-install': 'Пуши на iPhone: добавь пульт на экран «Домой» и открой с иконки',
+  denied: 'Пуши запрещены в настройках браузера',
+  off: 'Включить пуши',
+  on: 'Пуши включены, нажми, чтобы выключить',
 }
 
-/** Переключатель уведомлений в шапке (US-10). */
+/** Колокольчик в шапке (US-10). */
 export function PushToggle() {
   const [state, setState] = useState<PushState | null>(null)
   const [busy, setBusy] = useState(false)
@@ -18,12 +19,17 @@ export function PushToggle() {
   if (!state) return null
   const clickable = state === 'off' || state === 'on'
   const toggle = async () => {
+    if (!clickable) { alert(LABEL[state]); return }
     setBusy(true); setErr('')
     try { setState(state === 'on' ? await disablePush() : await enablePush()) }
     catch (e) { setErr((e as Error).message) }
     finally { setBusy(false) }
   }
-  return clickable
-    ? <button className="linkbtn" disabled={busy} onClick={toggle} title={err || (state === 'on' ? 'выключить' : '')}>{err ? 'пуши: ошибка' : LABEL[state]}</button>
-    : <span className="status-line">{LABEL[state]}</span>
+  const title = err ? 'Ошибка пушей: ' + err : LABEL[state]
+  return (
+    <button className="icon-btn" title={title} aria-label={title} aria-pressed={state === 'on'} disabled={busy} onClick={toggle}
+      style={state === 'on' ? undefined : { opacity: clickable ? 1 : .55 }}>
+      {Icons.bell}
+    </button>
+  )
 }
