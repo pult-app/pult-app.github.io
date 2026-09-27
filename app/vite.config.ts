@@ -2,9 +2,11 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Сайт живёт на germanpolkin.ru/pult/ (GitHub Pages проекта под пользовательским доменом).
+// Пульт отдельный продукт, не часть сайта-портфолио (ADR-005). Путь задаётся при сборке.
+const base = process.env.PULT_BASE ?? '/'
+
 export default defineConfig({
-  base: '/pult/',
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -15,8 +17,8 @@ export default defineConfig({
         short_name: 'Пульт',
         description: 'Пары, дедлайны, воронка стажировок, учёба и тренажёр',
         lang: 'ru',
-        start_url: '/pult/',
-        scope: '/pult/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         background_color: '#EEF2F4',
         theme_color: '#1E6A86',
@@ -27,7 +29,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallback: '/pult/index.html',
+        navigateFallback: base + 'index.html',
         // Ответы Supabase не кэшируются service worker'ом: офлайн-копия данных лежит в localStorage (US-16).
         runtimeCaching: [],
       },

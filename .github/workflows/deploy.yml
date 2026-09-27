@@ -35,6 +35,8 @@ jobs:
           # Публичные значения: адрес проекта и publishable-ключ. Доступ к данным закрыт RLS.
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          # Путь сайта: / для репозитория <org>.github.io, /pult/ для проектной страницы (ADR-005).
+          PULT_BASE: ${{ vars.PULT_BASE || '/' }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app/dist

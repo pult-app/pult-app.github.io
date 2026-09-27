@@ -3,8 +3,6 @@
 -- Все бизнес-таблицы содержат owner_id: сейчас пользователь один, но RLS и будущий
 -- многопользовательский режим работают по этому полю.
 
-create extension if not exists pgcrypto;
-
 -- ---------- Перечисления ----------
 
 create type vacancy_status as enum
@@ -22,7 +20,7 @@ create type notify_status as enum ('queued', 'held', 'sent', 'failed');
 -- ---------- Общая функция для updated_at и версии строки ----------
 
 create function touch_row() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = public as $$
 begin
   new.updated_at := now();
   new.row_version := old.row_version + 1;
@@ -246,6 +244,14 @@ create index study_deadline_idx   on study_work (owner_id, deadline) where statu
 create index task_due_idx         on task (owner_id, due_date) where not is_done;
 create index flashcard_due_idx    on flashcard (owner_id, due_on);
 create index sync_run_recent_idx  on sync_run (agent_client_id, started_at desc);
+-- Индексы на внешние ключи: ускоряют join и каскадное удаление.
+create index vacancy_company_idx    on vacancy (company_id);
+create index message_company_idx    on message (company_id);
+create index history_vacancy_idx    on vacancy_status_history (vacancy_id);
+create index study_discipline_idx   on study_work (discipline_id);
+create index card_review_card_idx   on card_review (flashcard_id);
+create index notification_msg_idx   on notification (message_id);
+create index notification_owner_idx on notification (owner_id, status);
 
 -- ---------- Триггеры ----------
 
@@ -309,24 +315,57 @@ alter table card_review        enable row level security;
 alter table sync_run           enable row level security;
 alter table idempotency_key    enable row level security;
 
-create policy owner_all on company           for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-create policy owner_all on vacancy           for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-create policy owner_all on message           for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-create policy owner_all on discipline        for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-create policy owner_all on study_work        for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-create policy owner_read on schedule_snapshot for select using (owner_id = auth.uid());
-create policy owner_all on task              for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-create policy owner_all on flashcard         for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-create policy owner_all on push_subscription for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-create policy owner_read on notification     for select using (owner_id = auth.uid());
-create policy owner_read on agent_client     for select using (owner_id = auth.uid());
+create policy owner_all on company           for all using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));
+create policy owner_all on vacancy           for all using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));
+create policy owner_all on message           for all using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));
+create policy owner_all on discipline        for all using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));
+create policy owner_all on study_work        for all using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));
+create policy owner_read on schedule_snapshot for select using (owner_id = (select auth.uid()));
+create policy owner_all on task              for all using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));
+create policy owner_all on flashcard         for all using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));
+create policy owner_all on push_subscription for all using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));
+create policy owner_read on notification     for select using (owner_id = (select auth.uid()));
+create policy owner_read on agent_client     for select using (owner_id = (select auth.uid()));
 
 -- Дочерние таблицы проверяются через родителя.
 create policy owner_read on vacancy_status_history for select
-  using (exists (select 1 from vacancy v where v.id = vacancy_id and v.owner_id = auth.uid()));
+  using (exists (select 1 from vacancy v where v.id = vacancy_id and v.owner_id = (select auth.uid())));
 create policy owner_all on card_review for all
-  using (exists (select 1 from flashcard f where f.id = flashcard_id and f.owner_id = auth.uid()))
-  with check (exists (select 1 from flashcard f where f.id = flashcard_id and f.owner_id = auth.uid()));
+  using (exists (select 1 from flashcard f where f.id = flashcard_id and f.owner_id = (select auth.uid())))
+  with check (exists (select 1 from flashcard f where f.id = flashcard_id and f.owner_id = (select auth.uid())));
 create policy owner_read on sync_run for select
-  using (exists (select 1 from agent_client a where a.id = agent_client_id and a.owner_id = auth.uid()));
+  using (exists (select 1 from agent_client a where a.id = agent_client_id and a.owner_id = (select auth.uid())));
 -- idempotency_key: политик нет, доступ только у Edge Function с service_role.
+
+-- ---------- Права на функции и доп. индексы (по советнику Supabase) ----------
+-- Триггерные функции не должны вызываться через /rest/v1/rpc. Триггеры при этом работают:
+-- право EXECUTE проверяется при создании триггера, а не при срабатывании.
+revoke execute on function public.log_vacancy_status() from public, anon, authenticated;
+revoke execute on function public.queue_notification() from public, anon, authenticated;
+revoke execute on function public.touch_row() from public, anon, authenticated;
+create index push_subscription_owner_idx on push_subscription (owner_id);
+
+-- ---------- Закрытая регистрация (US-15) ----------
+-- Первый вход по ссылке создаёт пользователя, но только для адресов из списка.
+-- Сам адрес вносится в базу отдельно и в репозиторий не попадает.
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+
+create table private.allowed_signup (
+  email text primary key check (email = lower(email))
+);
+
+create function private.guard_signup() returns trigger
+language plpgsql security definer set search_path = private, pg_temp as $$
+begin
+  if not exists (select 1 from private.allowed_signup where email = lower(new.email)) then
+    raise exception 'Регистрация закрыта' using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function private.guard_signup() from public, anon, authenticated;
+
+create trigger guard_signup before insert on auth.users
+  for each row execute function private.guard_signup();

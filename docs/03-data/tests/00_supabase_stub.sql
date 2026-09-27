@@ -1,3 +1,4 @@
+do $$ begin create role anon nologin; exception when duplicate_object then null; end $$;
 -- Заглушка схемы auth из Supabase для локальной проверки
 create schema auth;
 create table auth.users (id uuid primary key);

@@ -512,7 +512,7 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
           example:
-            type: https://pult.germanpolkin.ru/problems/validation
+            type: about:blank
             title: Ошибка валидации
             status: 422
             errors:
