@@ -11,6 +11,8 @@
   python tools/pult.py patch vacancies/hh-123 body.json --if-match 7
   python tools/pult.py put messages/gmail/<id> body.json
   python tools/pult.py card body.json --key <idempotency-key>
+  python tools/pult.py req-list [queued|working]               -> запросы «Спросить Claude»
+  python tools/pult.py req-set <id> working|done|failed [файл или текст ответа]
 Тело можно передать файлом или строкой JSON. Выход: код 0 при 2xx, иначе 1 и problem+json в stderr.
 """
 import json, os, sys, urllib.error, urllib.parse, urllib.request
@@ -35,8 +37,11 @@ def body(arg: str | None):
     return json.loads(text)
 
 
-def call(method: str, path: str, data=None, headers: dict | None = None):
-    req = urllib.request.Request(BASE + '/' + urllib.parse.quote(path.lstrip('/'), safe='/?=&'), method=method,
+REQ_BASE = BASE.replace('/ingest/v1', '/agent-requests')
+
+
+def call(method: str, path: str, data=None, headers: dict | None = None, base: str | None = None):
+    req = urllib.request.Request((base or BASE) + '/' + urllib.parse.quote(path.lstrip('/'), safe='/?=&'), method=method,
                                  data=None if data is None else json.dumps(data, ensure_ascii=False).encode('utf-8'),
                                  headers={'authorization': 'Bearer ' + token(), 'content-type': 'application/json', **(headers or {})})
     try:
@@ -72,6 +77,13 @@ def main(argv: list[str]) -> int:
         status, h, out = call(cmd.upper(), pos[0], body(pos[1]) if len(pos) > 1 else None, headers)
         if 'etag' in {k.lower() for k in h}:
             print('ETag:', next(v for k, v in h.items() if k.lower() == 'etag'), file=sys.stderr)
+    elif cmd == 'req-list':
+        status, _, out = call('GET', '?status=' + (pos[0] if pos else 'queued'), base=REQ_BASE)
+    elif cmd == 'req-set':
+        payload = {'status': pos[1]}
+        if len(pos) > 2:
+            p = Path(pos[2]); payload['result' if pos[1] == 'done' else 'error'] = p.read_text(encoding='utf-8') if p.is_file() else pos[2]
+        status, _, out = call('PATCH', pos[0], payload, base=REQ_BASE)
     elif cmd == 'card':
         status, _, out = call('POST', 'flashcards', body(pos[0]), {'idempotency-key': opt('--key') or ''})
     else:

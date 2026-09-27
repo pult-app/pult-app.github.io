@@ -85,6 +85,18 @@ export interface SyncRun {
   finished_at: string | null
 }
 
+export interface AgentRequest {
+  id: string
+  vacancy_id: string | null
+  kind: 'prep' | 'followup' | 'analyze' | 'custom'
+  prompt: string
+  status: 'queued' | 'working' | 'done' | 'failed' | 'cancelled'
+  result: string | null
+  error: string | null
+  created_at: string
+  done_at: string | null
+}
+
 export interface PultData {
   vacancies: Vacancy[]
   messages: Message[]
@@ -93,5 +105,6 @@ export interface PultData {
   cards: Flashcard[]
   schedule: ScheduleSnapshot | null
   lastRun: SyncRun | null
+  requests: AgentRequest[]
   loadedAt: string
 }

@@ -4,6 +4,7 @@ import { agenda, companyName, TASK_KINDS, vacancyState, type AgendaItem } from '
 import { LESSON_TYPES, lessonsFor, nextStudyDay } from '../lib/schedule'
 import type { PultData, TaskKind } from '../lib/types'
 import { Empty } from './ui'
+import { AskClaude, RequestList, type NewRequest } from './AskClaude'
 import type { Tab } from '../App'
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
   goto: (t: Tab) => void
   onTaskDone: (id: string, done: boolean) => Promise<void>
   onAddTask: (row: { title: string; due_date: string; due_time: string | null; kind: TaskKind }) => Promise<void>
+  onAsk: (r: NewRequest) => Promise<void>
 }
 
 function whenCls(n: number) { return n <= 0 ? 'hot' : n <= 3 ? 'warn' : '' }
@@ -52,7 +54,7 @@ function Lessons({ data }: { data: PultData }) {
   )
 }
 
-export function Today({ data, canWrite, goto, onTaskDone, onAddTask }: Props) {
+export function Today({ data, canWrite, goto, onTaskDone, onAddTask, onAsk }: Props) {
   const t = today()
   const ag = agenda(data, t)
   const urgent = ag.filter(x => days(t, x.date) <= 3)
@@ -101,6 +103,11 @@ export function Today({ data, canWrite, goto, onTaskDone, onAddTask }: Props) {
           <button className="linkbtn" onClick={() => goto('study')}>учебных работ: {studyOpen}</button>
           <button className="linkbtn" onClick={() => goto('train')}>карточек сегодня: {due}</button>
         </p>
+      </div>
+      <div className="section">
+        <div className="section-head"><h2>Спросить Claude</h2><span className="note">ответ придёт пушем</span></div>
+        <AskClaude vacancy={null} canWrite={canWrite} onAsk={onAsk} />
+        <RequestList items={data.requests.filter(r => !r.vacancy_id).slice(0, 3)} />
       </div>
       <Lessons data={data} />
       <div className="section">

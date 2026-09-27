@@ -14,6 +14,8 @@ import { PushToggle } from './components/PushToggle'
 import { ThemeToggle } from './components/ThemeToggle'
 import { Icons } from './components/icons'
 import { weekInfo } from './lib/schedule'
+import { CalendarLink } from './components/CalendarLink'
+import type { NewRequest } from './components/AskClaude'
 
 export type Tab = 'today' | 'funnel' | 'inbox' | 'study' | 'train' | 'stats'
 const TABS: { id: Tab; label: string }[] = [
@@ -183,6 +185,7 @@ export default function App() {
       applied_on: f.applied_on || (needsDate ? t : null),
     })
   })
+  const onAsk = (r: NewRequest) => act(() => insert('agent_request', r))
   const onGrade = (c: Flashcard, knew: boolean) => act(async () => {
     const next = grade(c.box, knew, t)
     await update('flashcard', c.id, next)
@@ -226,8 +229,8 @@ export default function App() {
       {!data ? <div className="empty">Загружаю…</div> : <>
         {tab === 'today' && <Today data={data} canWrite={canWrite} goto={setTab}
           onTaskDone={(id, done) => act(() => update('task', id, { is_done: done }))}
-          onAddTask={row => act(() => insert('task', { ...row, created_by: 'owner' }))} />}
-        {tab === 'funnel' && <Funnel data={data} canWrite={canWrite} onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAdd={onAddVacancy} />}
+          onAddTask={row => act(() => insert('task', { ...row, created_by: 'owner' }))} onAsk={onAsk} />}
+        {tab === 'funnel' && <Funnel data={data} canWrite={canWrite} onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAdd={onAddVacancy} onAsk={onAsk} />}
         {tab === 'inbox' && <Inbox data={data} canWrite={canWrite} onDone={(id, done) => act(() => update('message', id, { is_done: done }))} />}
         {tab === 'study' && <Study data={data} canWrite={canWrite}
           onStatus={(id, s) => act(() => update('study_work', id, { status: s, updated_by: 'owner' }))}
@@ -239,7 +242,7 @@ export default function App() {
         {tab === 'stats' && <Stats data={data} />}
       </>}
 
-      {data && <PasswordBox />}
+      {data && tab === 'stats' && <><CalendarLink /><PasswordBox /></>}
 
       <nav className="bnav" role="tablist" aria-label="Разделы">
         {TABS.map(x => {

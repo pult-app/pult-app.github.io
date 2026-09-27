@@ -4,6 +4,7 @@
 // Приватный ключ VAPID не покидает сервер: он лежит в private.app_secret, доступ через RPC только у service_role.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
+import { lessonsFor, type SchedulePayload } from './schedule.ts'
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
 const SUBJECT = 'https://pult-app.github.io/'
@@ -52,7 +53,7 @@ async function send(): Promise<Response> {
       stats.failed++
       continue
     }
-    const payload = JSON.stringify({ title: n.title, body: n.body, url: '/#inbox', tag: n.id })
+    const payload = JSON.stringify({ title: n.title, body: n.body, url: n.message ? '/#inbox' : '/#today', tag: n.id })
     let ok = 0
     const errors: string[] = []
     for (const s of subs) {
@@ -75,12 +76,45 @@ async function send(): Promise<Response> {
   return json(200, { quiet, ...stats })
 }
 
+/** Утренняя сводка в 8:00 (US-10): пары, что горит, чего ждёт воронка. */
+async function digest(): Promise<Response> {
+  const users = await db.auth.admin.listUsers({ perPage: 2 })
+  const owner = users.data?.users[0]?.id
+  if (!owner) return json(200, { skipped: 'нет пользователя' })
+  const t = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' })
+  const soon = new Date(Date.parse(t + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10)
+  const [sched, tasks, works, msgs, vacs, cards] = await Promise.all([
+    db.from('schedule_snapshot').select('payload').eq('owner_id', owner).eq('is_current', true).maybeSingle(),
+    db.from('task').select('title, due_date').eq('owner_id', owner).eq('is_done', false).lte('due_date', soon),
+    db.from('study_work').select('title, deadline').eq('owner_id', owner).neq('status', 'submitted').lte('deadline', soon),
+    db.from('message').select('id').eq('owner_id', owner).eq('is_done', false).in('kind', ['invite', 'test', 'question', 'offer']),
+    db.from('vacancy').select('id').eq('owner_id', owner).in('status', ['test', 'interview', 'offer']),
+    db.from('flashcard').select('id', { count: 'exact', head: true }).eq('owner_id', owner).lte('due_on', t),
+  ])
+  const parts: string[] = []
+  const payload = sched.data?.payload as SchedulePayload | undefined
+  if (payload) {
+    const [y, m, d] = t.split('-').map(Number)
+    const slots = lessonsFor(payload, new Date(y, m - 1, d)).slots
+    parts.push(slots.length ? 'Пары: ' + slots.map(x => x.time[0] + ' ' + x.lessons[0].subject.split(' ').slice(0, 2).join(' ')).join(', ') : 'Пар нет')
+  }
+  const hot = [...(tasks.data ?? []).map(x => x.title), ...(works.data ?? []).map(x => x.title)]
+  if (hot.length) parts.push('Горит: ' + hot.slice(0, 2).join('; ') + (hot.length > 2 ? ` и ещё ${hot.length - 2}` : ''))
+  if (msgs.data?.length) parts.push(`Писем с действием: ${msgs.data.length}`)
+  if (vacs.data?.length) parts.push(`В отборе: ${vacs.data.length}`)
+  if (cards.count) parts.push(`Карточек: ${cards.count}`)
+  // Вставка будит send через триггер notification_wake, второй вызов здесь дал бы дубль пуша.
+  await db.from('notification').insert({ owner_id: owner, title: 'Доброе утро, Герман', body: parts.join('. ').slice(0, 300) })
+  return json(200, { digest: parts })
+}
+
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
   const path = new URL(req.url).pathname.replace(/^.*?\/notify/, '')
   try {
     if (req.method === 'GET' && path === '/public-key') return json(200, { publicKey: (await vapid()).publicKey })
     if (req.method === 'POST' && path === '/send') return await send()
+    if (req.method === 'POST' && path === '/digest') return await digest()
     return json(404, { error: 'маршрут не найден' })
   } catch (e) {
     console.error(e)

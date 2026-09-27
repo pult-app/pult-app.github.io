@@ -68,7 +68,7 @@ const vacancy = (p: Partial<Vacancy>): Vacancy => ({
   applied_on: '2026-09-20', deadline: null, followed_up_on: null, next_step: null, prep: null, notes: null,
   updated_at: '', company: { name: 'Компания N' }, ...p,
 })
-const data = (p: Partial<PultData>): PultData => ({ vacancies: [], messages: [], works: [], tasks: [], cards: [], schedule: null, lastRun: null, loadedAt: '', ...p })
+const data = (p: Partial<PultData>): PultData => ({ vacancies: [], messages: [], works: [], tasks: [], cards: [], schedule: null, lastRun: null, requests: [], loadedAt: '', ...p })
 
 describe('напомнить о себе', () => {
   it('7+ дней без ответа попадает, свежий отклик нет', () => {

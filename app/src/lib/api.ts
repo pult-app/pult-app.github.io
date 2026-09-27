@@ -27,7 +27,7 @@ function must<T>(r: { data: T | null; error: { message: string } | null }): T {
 }
 
 export async function loadAll(): Promise<PultData> {
-  const [vacancies, messages, works, tasks, cards, schedule, runs] = await Promise.all([
+  const [vacancies, messages, works, tasks, cards, schedule, runs, requests] = await Promise.all([
     supabase.from('vacancy').select('*, company(name)'),
     supabase.from('message').select('id, vacancy_id, source, kind, received_at, sender, subject, summary, action, deadline, is_done, company(name)'),
     supabase.from('study_work').select('*, discipline(name, teacher)'),
@@ -35,6 +35,7 @@ export async function loadAll(): Promise<PultData> {
     supabase.from('flashcard').select('id, topic, question, answer, box, due_on'),
     supabase.from('schedule_snapshot').select('id, group_code, captured_at, payload').eq('is_current', true).limit(1),
     supabase.from('sync_run').select('id, job, status, started_at, finished_at').order('started_at', { ascending: false }).limit(1),
+    supabase.from('agent_request').select('id, vacancy_id, kind, prompt, status, result, error, created_at, done_at').order('created_at', { ascending: false }).limit(30),
   ])
   const data: PultData = {
     vacancies: must(vacancies) as unknown as PultData['vacancies'],
@@ -44,6 +45,7 @@ export async function loadAll(): Promise<PultData> {
     cards: must(cards),
     schedule: (must(schedule) as unknown as PultData['schedule'][])[0] ?? null,
     lastRun: (must(runs) as PultData['lastRun'][])[0] ?? null,
+    requests: must(requests) as PultData['requests'],
     loadedAt: new Date().toISOString(),
   }
   writeCache(data)

@@ -3,6 +3,7 @@ import { fmtDate, today } from '../lib/dates'
 import { companyName, KINDS, messagesFor, STATUSES, vacancyState, type Group, type StateView } from '../lib/domain'
 import type { PultData, Vacancy, VacancyStatus } from '../lib/types'
 import { Empty, PillSelect } from './ui'
+import { AskClaude, RequestList, type NewRequest } from './AskClaude'
 
 export interface NewVacancy { company: string; title: string; status: VacancyStatus; work_format: string; applied_on: string; channel: string; url: string; deadline: string }
 
@@ -13,6 +14,7 @@ interface Props {
   onSave: (id: string, patch: Partial<Vacancy>) => Promise<void>
   onFollowed: (id: string) => Promise<void>
   onAdd: (v: NewVacancy) => Promise<void>
+  onAsk: (r: NewRequest) => Promise<void>
 }
 
 const GROUPS: { id: Group; title: string; empty: string }[] = [
@@ -23,7 +25,7 @@ const GROUPS: { id: Group; title: string; empty: string }[] = [
 ]
 
 /** Подробности по нажатию: всё, что раньше висело в строке. */
-function Detail({ v, st, data, canWrite, onStatus, onSave, onFollowed }: { v: Vacancy; st: StateView; data: PultData; canWrite: boolean } & Pick<Props, 'onStatus' | 'onSave' | 'onFollowed'>) {
+function Detail({ v, st, data, canWrite, onStatus, onSave, onFollowed, onAsk }: { v: Vacancy; st: StateView; data: PultData; canWrite: boolean } & Pick<Props, 'onStatus' | 'onSave' | 'onFollowed' | 'onAsk'>) {
   const [next, setNext] = useState(v.next_step ?? '')
   const [prep, setPrep] = useState(v.prep ?? '')
   const [notes, setNotes] = useState(v.notes ?? '')
@@ -57,11 +59,15 @@ function Detail({ v, st, data, canWrite, onStatus, onSave, onFollowed }: { v: Va
         {v.url && <a className="btn ghost" href={v.url} target="_blank" rel="noopener">Вакансия ↗</a>}
         <span className="note">{msg}</span>
       </div>
+      <div className="field">Спросить Claude
+        <AskClaude vacancy={v} company={companyName(v)} canWrite={canWrite} onAsk={onAsk} />
+        <RequestList items={data.requests.filter(r => r.vacancy_id === v.id)} />
+      </div>
     </div>
   )
 }
 
-export function Funnel({ data, canWrite, onStatus, onSave, onFollowed, onAdd }: Props) {
+export function Funnel({ data, canWrite, onStatus, onSave, onFollowed, onAdd, onAsk }: Props) {
   const t = today()
   const [open, setOpen] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -84,7 +90,7 @@ export function Funnel({ data, canWrite, onStatus, onSave, onFollowed, onAdd }: 
         <span className={'state ' + st.tone}>{st.label}</span>
         {st.hint && <span className="vhint">{st.hint}</span>}
       </button>
-      {open === v.id && <Detail v={v} st={st} data={data} canWrite={canWrite} onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} />}
+      {open === v.id && <Detail v={v} st={st} data={data} canWrite={canWrite} onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAsk={onAsk} />}
     </div>
   )
 
