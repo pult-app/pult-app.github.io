@@ -126,8 +126,10 @@ const handlers: Record<string, (c: Ctx) => Promise<Response>> = {
       return json(201, vacancyOut(ins.data), { etag: etag(ins.data.row_version), location: `/ingest/v1/vacancies/${ref}` })
     }
     if (isDowngrade(cur.data.status, String(b.status))) return invalid([{ field: 'status', message: 'агент не возвращает вакансию на более ранний этап' }], 'status-downgrade')
-    // Поля, которые Герман правил руками, агент через PUT не трогает.
-    if (cur.data.updated_by === 'owner') { delete row.next_step; delete row.prep }
+    // PUT существующей вакансии не перезаписывает непустые next_step и prep: их меняют только через PATCH
+    // с If-Match, когда агент видел текущее значение. Так правки Германа не теряются при повторных PUT.
+    if (cur.data.next_step) delete row.next_step
+    if (cur.data.prep) delete row.prep
     const upd = await c.db.from('vacancy').update({ ...row, company_id: cid, updated_by: 'agent' }).eq('id', cur.data.id)
       .select('*, company(name)').single()
     if (upd.error) throw upd.error
@@ -206,8 +208,9 @@ const handlers: Record<string, (c: Ctx) => Promise<Response>> = {
       { onConflict: 'owner_id,name' }).select('id').single()
     if (disc.error) throw disc.error
     const cur = await c.db.from('study_work').select('id, updated_by').eq('owner_id', c.agent.owner_id).eq('code', code).maybeSingle()
-    const row = { ...toDb(b, ['discipline', 'teacher']), discipline_id: disc.data.id, updated_by: 'agent' }
-    if (cur.data?.updated_by === 'owner') delete (row as Record<string, unknown>).status // статус Германа не откатываем
+    const row: Record<string, unknown> = { ...toDb(b, ['discipline', 'teacher']), discipline_id: disc.data.id, updated_by: 'agent' }
+    // Статус, который поставил Герман, агент не меняет, и метка автора остаётся за Германом.
+    if (cur.data?.updated_by === 'owner') { delete row.status; delete row.updated_by }
     const res = cur.data
       ? await c.db.from('study_work').update(row).eq('id', cur.data.id).select().single()
       : await c.db.from('study_work').insert({ ...row, owner_id: c.agent.owner_id, code }).select().single()

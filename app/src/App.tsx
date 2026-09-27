@@ -33,8 +33,8 @@ function Login() {
     e.preventDefault()
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      // Первый вход создаёт пользователя, но база пропускает только адреса из private.allowed_signup (US-15).
-      options: { shouldCreateUser: true, emailRedirectTo: location.origin + import.meta.env.BASE_URL },
+      // Регистрация закрыта дважды: в настройках Auth и триггером по private.allowed_signup (US-15).
+      options: { shouldCreateUser: false, emailRedirectTo: location.origin + import.meta.env.BASE_URL },
     })
     if (error) { setState('error'); setErr(error.message) } else setState('sent')
   }

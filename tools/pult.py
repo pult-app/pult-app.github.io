@@ -13,7 +13,7 @@
   python tools/pult.py card body.json --key <idempotency-key>
 Тело можно передать файлом или строкой JSON. Выход: код 0 при 2xx, иначе 1 и problem+json в stderr.
 """
-import json, os, sys, urllib.error, urllib.request
+import json, os, sys, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 BASE = os.environ.get('PULT_API', 'https://wvqaulqriwvlaufqmhcq.supabase.co/functions/v1/ingest/v1')
@@ -36,7 +36,7 @@ def body(arg: str | None):
 
 
 def call(method: str, path: str, data=None, headers: dict | None = None):
-    req = urllib.request.Request(BASE + '/' + path.lstrip('/'), method=method,
+    req = urllib.request.Request(BASE + '/' + urllib.parse.quote(path.lstrip('/'), safe='/?=&'), method=method,
                                  data=None if data is None else json.dumps(data, ensure_ascii=False).encode('utf-8'),
                                  headers={'authorization': 'Bearer ' + token(), 'content-type': 'application/json', **(headers or {})})
     try:
