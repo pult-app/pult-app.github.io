@@ -10,6 +10,7 @@ import { Inbox } from './components/Inbox'
 import { Study } from './components/Study'
 import { Trainer } from './components/Trainer'
 import { Stats } from './components/Stats'
+import { PushToggle } from './components/PushToggle'
 
 export type Tab = 'today' | 'funnel' | 'inbox' | 'study' | 'train' | 'stats'
 const TABS: { id: Tab; label: string }[] = [
@@ -150,6 +151,7 @@ export default function App() {
           <span className={'status-line' + (offline ? ' off' : runAgeH !== null && runAgeH > 12 ? ' stale' : '')}>
             {offline ? `офлайн, данные на ${loaded}` : runAt ? `агент обновил ${fmtDate(runAt.slice(0, 10))} в ${hhmm(runAt)}` : loaded ? `данные на ${loaded}` : ''}
           </span>
+          <PushToggle />
           <button className="linkbtn" onClick={() => { clearCache(); supabase.auth.signOut() }}>выйти</button>
         </div>
       </header>
