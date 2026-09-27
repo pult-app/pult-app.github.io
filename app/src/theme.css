@@ -191,6 +191,8 @@ a.btn{text-decoration:none; display:inline-flex; align-items:center}
 
 /* Спросить Claude */
 .ask{display:grid; gap:10px; margin:6px 0 10px}
+.field .ask,.field .cards{text-transform:none; letter-spacing:0; font-weight:400; font-size:15px; color:var(--ink)}
+.presets .chip{background:var(--sunk); color:var(--accent); font-weight:600; box-shadow:inset 0 0 0 1px var(--line)}
 .presets{display:flex; flex-wrap:wrap; gap:8px}
 .askform{display:flex; gap:8px}
 .askform input{flex:1; min-width:0}

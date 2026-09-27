@@ -7,7 +7,7 @@ export type NewRequest = { kind: AgentRequest['kind']; prompt: string; vacancy_i
 const PRESETS: { kind: AgentRequest['kind']; label: string; prompt: (v: Vacancy, co: string) => string }[] = [
   { kind: 'prep', label: 'Подготовь к собесу', prompt: (v, co) => `Подготовь меня к собеседованию в ${co} на «${v.title}»: вероятные вопросы с короткими ответами на моих примерах, что повторить, 2-3 вопроса работодателю.` },
   { kind: 'followup', label: 'Напоминание HR', prompt: (v, co) => `Напиши короткое вежливое напоминание HR ${co} про мой отклик на «${v.title}». Только черновик, ничего не отправляй.` },
-  { kind: 'analyze', label: 'Разбери вакансию', prompt: (v, co) => `Разбери вакансию ${co} «${v.title}»: ключевые требования, что у меня уже есть, каких пробелов нет, как их закрыть до собеса.` },
+  { kind: 'analyze', label: 'Разбери вакансию', prompt: (v, co) => `Разбери вакансию ${co} «${v.title}»: ключевые требования, что у меня уже есть, чего не хватает и как это закрыть до собеса.` },
 ]
 
 const STATUS: Record<AgentRequest['status'], { label: string; tone: string }> = {
@@ -33,7 +33,7 @@ export function RequestList({ items }: { items: AgentRequest[] }) {
             ? <div className="answer">{r.result}</div>
             : <button className="linkbtn" onClick={() => setOpen(r.id)}>Открыть ответ</button>)}
           {r.status === 'failed' && r.error && <div className="msum">{r.error}</div>}
-          <div className="mfoot"><span className="mono">{fmtDate(r.created_at.slice(0, 10))}</span>{r.status === 'queued' && <span>ответ придёт пушем</span>}</div>
+          <div className="mfoot"><span className="mono">{fmtDate(new Date(r.created_at).toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' }))}</span>{r.status === 'queued' && <span>ответ придёт пушем</span>}</div>
         </div>))}
     </div>
   )
