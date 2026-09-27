@@ -127,3 +127,6 @@ h2{font-size:18px}
   .bnav button,.chip,.btn,.icon-btn{transition:background .15s, color .15s, transform .1s}
   .bnav button:active,.btn:active,.icon-btn:active{transform:scale(.96)}
 }
+
+.flash .tag{justify-self:start}
+@media (max-width:760px){ .kpis,.funnel,.filters{scroll-padding-inline:16px} }
