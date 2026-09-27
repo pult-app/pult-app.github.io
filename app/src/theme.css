@@ -102,6 +102,21 @@ h2{font-size:18px}
   .pill{padding:8px 26px 8px 12px; font-size:14px}
   .tog{width:36px; height:36px}
   .note:last-child{padding-bottom:4px}
+
+  /* Пункт повестки: срок и действие сверху, текст на всю ширину */
+  .item{grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"when act" "what what"; row-gap:8px; padding:14px 16px}
+  .item>.when{grid-area:when; justify-self:start}
+  .item>.what{grid-area:what; font-size:15px}
+  .item>:last-child{grid-area:act}
+
+  /* Вакансия карточкой: название и шаг, формат, внизу дата, статус и раскрытие */
+  .row{grid-template-columns:auto minmax(0,1fr) 40px; grid-template-areas:"main main main" "fmt fmt fmt" "date pill tog"; row-gap:8px; column-gap:10px}
+  .row>.cell-main{grid-area:main}
+  .row>.fmt{grid-area:fmt; color:var(--muted); font-size:13px}
+  .row>.date{grid-area:date; text-align:left; align-self:center}
+  .row>.cell-pill{grid-area:pill; justify-self:end; width:min(190px,100%)}
+  .row>.tog{grid-area:tog}
+  .co{font-size:16px}
 }
 
 /* Экран входа */
