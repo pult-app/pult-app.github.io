@@ -11,6 +11,7 @@ import { Study } from './components/Study'
 import { Trainer } from './components/Trainer'
 import { Stats } from './components/Stats'
 import { PushToggle } from './components/PushToggle'
+import { ThemeToggle } from './components/ThemeToggle'
 import { Icons } from './components/icons'
 import { weekInfo } from './lib/schedule'
 
@@ -197,6 +198,7 @@ export default function App() {
             <p className="greet">{greet}</p>
           </div>
           <div className="hero-actions">
+            <ThemeToggle />
             <PushToggle />
             <button className="icon-btn" title="Выйти" aria-label="Выйти" onClick={() => { clearCache(); supabase.auth.signOut() }}>{Icons.logout}</button>
           </div>

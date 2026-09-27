@@ -102,3 +102,34 @@ export function statusPatch(v: Vacancy, status: VacancyStatus, t: string): Parti
   if (status !== 'found' && status !== 'skip' && !v.applied_on) patch.applied_on = t
   return patch
 }
+
+// ---------- Понятное состояние в одну строку (UX v3) ----------
+
+export type Tone = 'action' | 'wait' | 'todo' | 'closed' | 'win'
+export type Group = 'action' | 'wait' | 'todo' | 'closed'
+export interface StateView { label: string; tone: Tone; group: Group; hint: string }
+
+const plural = (n: number, one: string, few: string, many: string) => {
+  const m10 = n % 10, m100 = n % 100
+  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many
+}
+export const daysWord = (n: number) => n + ' ' + plural(n, 'день', 'дня', 'дней')
+
+/** Что сейчас с вакансией и что делать, без лишнего контекста. */
+export function vacancyState(v: Vacancy, messages: Message[], t: string): StateView {
+  const open = messages.find(m => m.vacancy_id === v.id && !m.is_done && ['invite', 'test', 'question', 'offer'].includes(m.kind))
+  if (v.status === 'offer') return { label: 'Оффер', tone: 'win', group: 'action', hint: open?.action ?? 'Реши по офферу' }
+  if (open) return { label: open.kind === 'invite' ? 'Зовут на встречу' : open.kind === 'test' ? 'Тестовое' : 'Нужен ответ', tone: 'action', group: 'action', hint: open.action ?? open.summary }
+  if (v.status === 'interview') return { label: 'Собеседование', tone: 'action', group: 'action', hint: v.next_step ?? 'Готовься к следующему этапу' }
+  if (v.status === 'test') return { label: 'Тестовое', tone: 'action', group: 'action', hint: v.next_step ?? 'Сделай тестовое' }
+  if (v.status === 'applied') {
+    const d = v.applied_on ? days(v.applied_on, t) : 0
+    const followed = v.followed_up_on && days(v.followed_up_on, t) < FOLLOW_DAYS
+    if (d >= FOLLOW_DAYS && !hasLiveReply(messages, v.id) && !followed)
+      return { label: 'Без ответа ' + daysWord(d), tone: 'action', group: 'action', hint: 'Напомни о себе HR' }
+    return { label: d === 0 ? 'Подана сегодня' : 'Ждём ответа · ' + daysWord(d), tone: 'wait', group: 'wait', hint: v.next_step ?? '' }
+  }
+  if (v.status === 'reserve') return { label: 'В резерве', tone: 'wait', group: 'wait', hint: v.next_step ?? '' }
+  if (v.status === 'found') return { label: 'Не подана', tone: 'todo', group: 'todo', hint: v.next_step ?? 'Подать отклик' }
+  return { label: v.status === 'reject' ? 'Отказ' : 'Не подходит', tone: 'closed', group: 'closed', hint: '' }
+}

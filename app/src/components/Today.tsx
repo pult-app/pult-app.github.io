@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { days, fmtDate, leftLabel, nowHM, toLocalDate, today } from '../lib/dates'
-import { agenda, TASK_KINDS, type AgendaItem } from '../lib/domain'
+import { agenda, companyName, TASK_KINDS, vacancyState, type AgendaItem } from '../lib/domain'
 import { LESSON_TYPES, lessonsFor, nextStudyDay } from '../lib/schedule'
 import type { PultData, TaskKind } from '../lib/types'
 import { Empty } from './ui'
@@ -58,13 +58,9 @@ export function Today({ data, canWrite, goto, onTaskDone, onAddTask }: Props) {
   const urgent = ag.filter(x => days(t, x.date) <= 3)
   const later = ag.filter(x => { const n = days(t, x.date); return n > 3 && n <= 14 })
   const due = data.cards.filter(c => c.due_on <= t).length
-  const kpis: [number, string, Tab][] = [
-    [urgent.length, 'срочных дел', 'today'],
-    [data.vacancies.filter(v => v.status === 'interview' || v.status === 'test').length, 'этапов отбора', 'funnel'],
-    [data.messages.filter(m => !m.is_done && m.kind !== 'ack').length, 'ждут ответа', 'inbox'],
-    [data.works.filter(w => w.status !== 'submitted').length, 'учебных работ', 'study'],
-    [due, 'карточек на сегодня', 'train'],
-  ]
+  const focus = data.vacancies.map(v => ({ v, st: vacancyState(v, data.messages, t) })).filter(x => x.st.group === 'action')
+  const openMail = data.messages.filter(m => !m.is_done && ['invite', 'test', 'question', 'offer'].includes(m.kind)).length
+  const studyOpen = data.works.filter(w => w.status !== 'submitted').length
 
   const row = (x: AgendaItem, i: number) => {
     const n = days(t, x.date)
@@ -72,7 +68,7 @@ export function Today({ data, canWrite, goto, onTaskDone, onAddTask }: Props) {
     return (
       <div className="item" key={i}>
         <span className={'when ' + whenCls(n)}>{when}</span>
-        <div className="what">{x.title}<div className="meta"><span className="tag">{TASK_KINDS[x.kind] ?? 'Дело'}</span></div></div>
+        <div className="what">{x.title}</div>
         {x.taskId && canWrite
           ? <input type="checkbox" className="chk" aria-label="Сделано" onChange={e => onTaskDone(x.taskId!, e.target.checked)} />
           : x.goto ? <button className="btn ghost small" onClick={() => goto(x.goto!)}>Открыть</button> : <span />}
@@ -93,8 +89,18 @@ export function Today({ data, canWrite, goto, onTaskDone, onAddTask }: Props) {
 
   return (
     <section className="panel">
-      <div className="kpis">
-        {kpis.map(([n, l, g]) => <button key={l} className="kpi" onClick={() => goto(g)}><span className="n">{n}</span><span className="l">{l}</span></button>)}
+      <div className="section">
+        <div className="section-head"><h2>Главное сейчас</h2></div>
+        {focus.length ? <div className="cards">{focus.slice(0, 4).map(({ v, st }) => (
+          <button key={v.id} className="focus" onClick={() => goto('funnel')}>
+            <span className="vco">{companyName(v)}</span><span className={'state ' + st.tone}>{st.label}</span>
+            <span className="vhint">{st.hint}</span>
+          </button>))}</div> : <div className="list"><Empty>По поиску работы ничего не горит.</Empty></div>}
+        <p className="summary links">
+          <button className="linkbtn" onClick={() => goto('inbox')}>писем с действием: {openMail}</button>
+          <button className="linkbtn" onClick={() => goto('study')}>учебных работ: {studyOpen}</button>
+          <button className="linkbtn" onClick={() => goto('train')}>карточек сегодня: {due}</button>
+        </p>
       </div>
       <Lessons data={data} />
       <div className="section">

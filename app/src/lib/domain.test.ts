@@ -108,3 +108,21 @@ describe('смена статуса', () => {
     expect(statusPatch(vacancy({}), 'interview', '2026-09-27')).not.toHaveProperty('applied_on')
   })
 })
+
+import { vacancyState, daysWord } from './domain'
+describe('понятное состояние вакансии', () => {
+  it('склонение дней', () => {
+    expect([1, 2, 5, 11, 21, 22].map(daysWord)).toEqual(['1 день', '2 дня', '5 дней', '11 дней', '21 день', '22 дня'])
+  })
+  it('ждём ответа и пора напомнить', () => {
+    expect(vacancyState(vacancy({ applied_on: '2026-09-25' }), [], '2026-09-27')).toMatchObject({ label: 'Ждём ответа · 2 дня', group: 'wait' })
+    expect(vacancyState(vacancy({ applied_on: '2026-09-18' }), [], '2026-09-27')).toMatchObject({ label: 'Без ответа 9 дней', group: 'action' })
+  })
+  it('открытое письмо с действием важнее статуса', () => {
+    const m = { id: 'm', vacancy_id: 'v1', source: 'gmail', kind: 'question' as const, received_at: '', sender: null, subject: null, summary: 's', action: 'Дать согласие', deadline: null, is_done: false, company: null }
+    expect(vacancyState(vacancy({}), [m], '2026-09-27')).toMatchObject({ label: 'Нужен ответ', hint: 'Дать согласие', group: 'action' })
+  })
+  it('отказ закрыт', () => {
+    expect(vacancyState(vacancy({ status: 'reject' }), [], '2026-09-27').group).toBe('closed')
+  })
+})

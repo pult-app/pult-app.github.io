@@ -130,3 +130,61 @@ h2{font-size:18px}
 
 .flash .tag{justify-self:start}
 @media (max-width:760px){ .kpis,.funnel,.filters{scroll-padding-inline:16px} }
+
+/* Тёмная тема вручную (кнопка в шапке) */
+:root[data-theme="dark"]{ color-scheme:dark;
+  --ground:#0A1116; --ground-2:#0E1A21; --surface:#13202A; --sunk:#1A2A35; --ink:#E4ECF1; --muted:#90A2AE; --line:#223340;
+  --accent:#4FB7D4; --accent-ink:#06151B; --focus:#4FB7D4;
+  --hero-1:#0C3645; --hero-2:#11546A; --hero-ink:#EAF6FA; --hero-muted:#9CC7D4;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  --s-found:#A3B0BA; --s-applied:#6EC0DD; --s-test:#E5B559; --s-interview:#B99AE6; --s-offer:#6FD19A; --s-reserve:#8FB0BE; --s-reject:#EE8B8B; --s-skip:#7F8B93;
+  --s-found-bg:#23313B; --s-applied-bg:#15394A; --s-test-bg:#3A2C10; --s-interview-bg:#30234A; --s-offer-bg:#153A26; --s-reserve-bg:#1F3139; --s-reject-bg:#431F22; --s-skip-bg:#1F2A31;
+  --warn:#E5B559; --warn-bg:#3A2C10; --hot:#EE8B8B; --hot-bg:#431F22; --ok:#6FD19A; --ok-bg:#153A26;
+}
+:root[data-theme="light"]{ color-scheme:light }
+
+/* ---------- UX v3: одна понятная строка состояния ---------- */
+.summary{margin:0; color:var(--muted); font-size:14px}
+.summary b{color:var(--ink); font-family:var(--f-mono); font-weight:600}
+.summary.links{display:flex; flex-wrap:wrap; gap:6px 16px}
+.summary .linkbtn{color:var(--accent); text-decoration:none; font-size:14px}
+.group{display:grid; gap:10px}
+.group h2{display:flex; align-items:center; gap:8px}
+.count{font-family:var(--f-mono); font-size:12px; font-weight:600; color:var(--muted); background:var(--sunk); border-radius:999px; padding:1px 8px}
+.closed-group summary{cursor:pointer; font-weight:600; font-size:16px; color:var(--muted); display:flex; gap:8px; align-items:center}
+.cards{display:grid; gap:10px}
+.vcard,.mcard,.focus{background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden}
+.vhead,.focus{display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"main state" "hint hint"; gap:4px 12px;
+  width:100%; text-align:left; border:0; background:transparent; padding:14px 16px; align-items:center}
+.focus>.vco{grid-area:main}
+.vmain{grid-area:main; display:grid; min-width:0}
+.vco{font-weight:700; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.vrole{color:var(--muted); font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.state{grid-area:state; justify-self:end; font-size:12.5px; font-weight:700; border-radius:999px; padding:5px 10px; white-space:nowrap}
+.state.action{background:var(--warn-bg); color:var(--warn)}
+.state.win{background:var(--ok-bg,#DDF1E4); color:var(--ok,#1D7A45)}
+.state.wait{background:var(--s-applied-bg); color:var(--s-applied)}
+.state.todo{background:var(--sunk); color:var(--muted)}
+.state.closed{background:var(--sunk); color:var(--muted); opacity:.8}
+.vhint{grid-area:hint; font-size:14px; color:var(--ink); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.vhint:empty{display:none}
+.vcard.open{outline:2px solid color-mix(in srgb,var(--accent) 40%,transparent)}
+.vdetail{display:grid; gap:12px; padding:0 16px 16px; border-top:1px solid var(--line); padding-top:14px}
+.facts{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0; font-size:14px}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0}
+.field{display:grid; gap:6px; font-size:12px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--muted)}
+.field textarea{text-transform:none; letter-spacing:0; font-weight:400; font-size:15px; color:var(--ink); background:var(--sunk); border:1px solid var(--line); border-radius:12px; padding:10px 12px; min-height:64px; resize:vertical}
+.field .pill{max-width:240px}
+.timeline{display:grid; gap:6px; font-size:14px; border-left:3px solid var(--line); padding-left:12px}
+.vdetail .acts{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+a.btn{text-decoration:none; display:inline-flex; align-items:center}
+.mcard{padding:14px 16px; display:grid; gap:6px}
+.mcard.done{opacity:.6}
+.mtop{display:flex; justify-content:space-between; gap:10px; align-items:center}
+.mact{font-weight:600; font-size:15px}
+.mact .due{color:var(--warn); font-weight:600}
+.mact .due.hot{color:var(--hot)}
+.msum{font-size:14px; color:var(--muted)}
+.mfoot{display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted)}
+.search{margin:0; width:100%; flex:none; border:0; box-shadow:var(--shadow); border-radius:14px; padding:12px 14px; background:var(--surface)}
