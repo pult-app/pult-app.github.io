@@ -26,27 +26,63 @@ function initialTab(): Tab {
 }
 
 function Login() {
+  const [mode, setMode] = useState<'password' | 'link'>('password')
   const [email, setEmail] = useState('')
-  const [state, setState] = useState<'idle' | 'sent' | 'error'>('idle')
+  const [password, setPassword] = useState('')
+  const [state, setState] = useState<'idle' | 'busy' | 'sent' | 'error'>('idle')
   const [err, setErr] = useState('')
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      // Регистрация закрыта дважды: в настройках Auth и триггером по private.allowed_signup (US-15).
-      options: { shouldCreateUser: false, emailRedirectTo: location.origin + import.meta.env.BASE_URL },
-    })
-    if (error) { setState('error'); setErr(error.message) } else setState('sent')
+    setState('busy')
+    // Регистрация закрыта дважды: в настройках Auth и триггером по private.allowed_signup (US-15).
+    const { error } = mode === 'password'
+      ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      : await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: false, emailRedirectTo: location.origin + import.meta.env.BASE_URL } })
+    if (error) { setState('error'); setErr(error.message === 'Invalid login credentials' ? 'неверная почта или пароль' : error.message) }
+    else setState(mode === 'link' ? 'sent' : 'idle')
   }
   return (
     <form className="login" onSubmit={submit}>
       <h1>Пульт</h1>
-      <p className="sub">Вход по одноразовой ссылке на почту.</p>
-      <input type="email" required autoComplete="email" placeholder="почта" value={email} onChange={e => setEmail(e.target.value)} aria-label="Почта" />
-      <button className="btn" type="submit">Прислать ссылку</button>
+      <div className="filters" role="group" aria-label="Способ входа">
+        <button type="button" className="chip" aria-pressed={mode === 'password'} onClick={() => setMode('password')}>По паролю</button>
+        <button type="button" className="chip" aria-pressed={mode === 'link'} onClick={() => setMode('link')}>Ссылкой на почту</button>
+      </div>
+      <input type="email" required autoComplete="username" placeholder="почта" value={email} onChange={e => setEmail(e.target.value)} aria-label="Почта" />
+      {mode === 'password' && <input type="password" required minLength={8} autoComplete="current-password" placeholder="пароль" value={password} onChange={e => setPassword(e.target.value)} aria-label="Пароль" />}
+      <button className="btn" type="submit" disabled={state === 'busy'}>{mode === 'password' ? 'Войти' : 'Прислать ссылку'}</button>
+      {mode === 'password' && <p className="note">Пароль задаётся в пульте на уже вошедшем устройстве: внизу, «Вход на других устройствах».</p>}
+      {mode === 'link' && <p className="note">На iPhone ссылка открывается в Safari, а не в приложении с экрана «Домой». Для него удобнее вход по паролю.</p>}
       {state === 'sent' && <p className="note">Ссылка отправлена, открой письмо на этом устройстве.</p>}
       {state === 'error' && <p className="note">Не получилось: {err}</p>}
     </form>
+  )
+}
+
+/** Пароль для входа на устройствах, где ссылка из письма не подходит (приложение на iPhone). */
+function PasswordBox() {
+  const [pw, setPw] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [msg, setMsg] = useState('')
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (pw !== pw2) { setMsg('Пароли не совпадают'); return }
+    const { error } = await supabase.auth.updateUser({ password: pw })
+    if (error) setMsg('Не получилось: ' + error.message)
+    else { setMsg('Пароль сохранён. На телефоне войди по почте и этому паролю.'); setPw(''); setPw2('') }
+  }
+  return (
+    <details className="add">
+      <summary>Вход на других устройствах</summary>
+      <form className="form" onSubmit={submit}>
+        <label>Новый пароль<input type="password" required minLength={10} autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} /></label>
+        <label>Ещё раз<input type="password" required minLength={10} autoComplete="new-password" value={pw2} onChange={e => setPw2(e.target.value)} /></label>
+        <div className="full" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="btn" type="submit">Сохранить пароль</button><span className="note">{msg}</span>
+        </div>
+        <p className="note full">Не короче 10 символов. Пароль хранится в Supabase только в виде хэша.</p>
+      </form>
+    </details>
   )
 }
 
@@ -64,6 +100,13 @@ export default function App() {
     try { localStorage.setItem('pult-tab', t) } catch { /* пусто */ }
     window.scrollTo({ top: 0 })
   }
+
+  // Переход по #вкладке в адресе (из пуша или закладки) переключает экран без перезагрузки.
+  useEffect(() => {
+    const onHash = () => { const h = location.hash.slice(1) as Tab; if (TABS.some(t => t.id === h)) setTabState(h) }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setAuthReady(true) })
@@ -183,6 +226,8 @@ export default function App() {
         {tab === 'train' && <Trainer data={data} canWrite={canWrite} onGrade={onGrade} />}
         {tab === 'stats' && <Stats data={data} />}
       </>}
+
+      {data && <PasswordBox />}
 
       <p className="note">Данные приносит Claude: почта и hh.ru в 9:00, 14:00 и 20:00. Статусы и отметки можно менять здесь.</p>
     </div>
