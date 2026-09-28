@@ -14,7 +14,7 @@ export function applyTheme(mode: ThemeMode) {
   const root = document.documentElement
   if (mode === 'system') delete root.dataset.theme; else root.dataset.theme = mode
   const dark = mode === 'dark' || (mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
-  document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', dark ? '#0D1318' : '#F3F1EC'))
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', dark ? '#0B0B0C' : '#F1F0EE'))
 }
 
 const ICON: Record<ThemeMode, ReactElement> = {

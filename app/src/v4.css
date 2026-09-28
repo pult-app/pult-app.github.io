@@ -56,7 +56,7 @@ body{font-size:16px; -webkit-font-smoothing:antialiased; overscroll-behavior-y:n
 .chip[aria-pressed="true"]{background:var(--ink); color:var(--ground)}
 details.add summary{list-style:none; display:flex; align-items:center; justify-content:space-between; font-weight:600; min-height:28px}
 details.add summary::-webkit-details-marker{display:none}
-details.add summary::after{content:"+"; font-size:22px; font-weight:400; color:var(--accent); transition:transform .25s var(--ease)}
+details.add summary::after{content:"+"; font-size:22px; font-weight:400; color:var(--accent-text); transition:transform .25s var(--ease)}
 details.add[open] summary::after{transform:rotate(45deg)}
 
 /* ---------- Большой заголовок и компактная шапка ---------- */
@@ -72,9 +72,9 @@ details.add[open] summary::after{transform:rotate(45deg)}
   border-bottom:1px solid var(--line); opacity:0; transform:translateY(-6px); pointer-events:none; transition:opacity .2s var(--ease), transform .2s var(--ease)}
 .navbar.on{opacity:1; transform:none; pointer-events:auto}
 .nb-title{font-size:16px; font-weight:600; max-width:60vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.nb-back{justify-self:start; border:0; background:transparent; color:var(--accent); display:flex; align-items:center; gap:2px; font-size:16px; min-height:44px; padding:0}
+.nb-back{justify-self:start; border:0; background:transparent; color:var(--accent-text); display:flex; align-items:center; gap:2px; font-size:16px; min-height:44px; padding:0}
 .nb-back svg,.backlink svg{width:22px; height:22px}
-.backlink{justify-self:start; min-height:44px; display:flex; align-items:center; gap:2px; border:0; background:transparent; color:var(--accent); font-size:16px; font-weight:500; padding:0; margin-left:-6px}
+.backlink{justify-self:start; min-height:44px; display:flex; align-items:center; gap:2px; border:0; background:transparent; color:var(--accent-text); font-size:16px; font-weight:500; padding:0; margin-left:-6px}
 
 .icon-btn{width:44px; height:44px; border-radius:22px; border:0; display:grid; place-items:center; background:var(--surface); color:var(--ink)}
 .icon-btn[aria-pressed="true"]{background:var(--accent-soft); color:var(--accent-deep)}
@@ -118,7 +118,7 @@ details.add[open] summary::after{transform:rotate(45deg)}
 .trow.past{opacity:.45}
 .trow .now{font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px; background:var(--accent); color:var(--accent-ink); flex-shrink:0}
 .trow .chk{flex-shrink:0; width:24px; height:24px}
-.trow .go{flex-shrink:0; border:0; background:transparent; color:var(--accent); font-size:15px; font-weight:500; min-height:44px; padding:0 2px}
+.trow .go{flex-shrink:0; border:0; background:transparent; color:var(--accent-text); font-size:15px; font-weight:500; min-height:44px; padding:0 2px}
 :root[data-theme="dark"] .trow .tm.hot{color:#FF8A7A}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .trow .tm.hot{color:#FF8A7A} }
 .empty{padding:22px 16px; color:var(--muted); text-align:center; font-size:15px}
@@ -135,7 +135,7 @@ details.add[open] summary::after{transform:rotate(45deg)}
 
 /* ---------- Строка «Спроси Claude» ---------- */
 .askline{display:flex; align-items:center; gap:10px; min-height:54px; padding:0 6px 0 16px; border-radius:27px; background:var(--surface)}
-.askline>svg{width:20px; height:20px; color:var(--accent); flex-shrink:0}
+.askline>svg{width:20px; height:20px; color:var(--accent-text); flex-shrink:0}
 .askline input{flex:1; min-width:0; border:0; background:transparent; color:var(--ink); font-size:16px; outline:none; padding:12px 0}
 .askline button{width:42px; height:42px; border-radius:21px; border:0; background:var(--accent); color:var(--accent-ink); display:grid; place-items:center; flex-shrink:0}
 .askline button:disabled{opacity:.35}
@@ -215,7 +215,7 @@ details.add[open] summary::after{transform:rotate(45deg)}
 details.more4{background:var(--surface); border-radius:var(--radius); padding:16px}
 details.more4 summary{cursor:pointer; font-weight:600; list-style:none; display:flex; justify-content:space-between}
 details.more4 summary::-webkit-details-marker{display:none}
-details.more4 summary::after{content:"+"; font-size:22px; font-weight:400; line-height:1; color:var(--accent); transition:transform .25s var(--ease)}
+details.more4 summary::after{content:"+"; font-size:22px; font-weight:400; line-height:1; color:var(--accent-text); transition:transform .25s var(--ease)}
 details.more4[open] summary::after{transform:rotate(45deg)}
 details.more4[open]{display:grid; gap:12px}
 
@@ -259,7 +259,7 @@ details.more4[open]{display:grid; gap:12px}
 .tabbar button{position:relative; border:0; background:transparent; color:var(--muted); display:grid; justify-items:center; align-content:center; gap:2px;
   font-size:11px; font-weight:500; min-width:0; border-radius:26px}
 .tabbar button svg{width:24px; height:24px}
-.tabbar button[aria-current="page"]{color:var(--accent); font-weight:600}
+.tabbar button[aria-current="page"]{color:var(--accent-text); font-weight:600}
 .tb-badge{position:absolute; top:3px; left:calc(50% + 6px); min-width:18px; height:18px; padding:0 5px; border-radius:9px;
   background:#E5484D; color:#fff; font:600 11px/18px var(--f-mono)}
 @media (min-width:720px){ .tabbar{left:50%; right:auto; width:520px; transform:translateX(-50%)} }
@@ -312,3 +312,46 @@ html[data-dir="back"]::view-transition-new(root){animation:vt-in-l .32s var(--ea
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more){
   .tabbar,.navbar{background:var(--surface); -webkit-backdrop-filter:none; backdrop-filter:none}
 }
+
+/* ---------- Палитра «Графит и сигнал» (28.09): середина между моно-оранжевым и графит-янтарём ----------
+   Графит и тёплый нейтральный фон, один оранжево-янтарный сигнал. Акцент как заливка с тёмным текстом,
+   для текста и иконок на светлом фоне берётся более тёмный --accent-text (контраст от 4.5:1). */
+:root{
+  --ground:#F1F0EE; --ground-2:#F1F0EE; --surface:#FFFFFF; --sunk:#E7E6E3; --ink:#141416; --muted:#65656A; --line:#E0DFDB;
+  --accent:#EE7F1F; --accent-ink:#141416; --accent-text:#A8510A; --focus:#C9650F; --accent-soft:#FBE8D4; --accent-deep:#8A4207;
+  --act-bg:#FBE8D4; --act-fg:#8A4207; --act-line:#EE7F1F;
+  --wait-bg:#E9E8E5; --wait-fg:#3F3F44; --wait-mid:#8E8D8A;
+  --win-bg:#DDF0E3; --win-fg:#155C33; --win-mid:#2E8B57;
+  --off-bg:#EDECE9; --off-fg:#6A6A6E; --off-mid:#CFCEC9; --res-mid:#C7B9A5;
+  --panel:#141416; --panel-2:#1E1E21; --panel-ink:#F3F2EF; --panel-muted:#A09E99; --signal:#FF8A2A;
+  --glass:rgba(255,255,255,.74); --glass-edge:rgba(255,255,255,.8); --glass-shadow:0 10px 30px rgba(20,20,22,.14), 0 1px 0 rgba(255,255,255,.6) inset;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ground:#0B0B0C; --ground-2:#0B0B0C; --surface:#161618; --sunk:#202023; --ink:#EDECEA; --muted:#9C9B97; --line:#26262A;
+  --accent:#FF9A3D; --accent-ink:#1A0E03; --accent-text:#FFAE62; --focus:#FF9A3D; --accent-soft:#2E1C0C; --accent-deep:#FFC48F;
+  --act-bg:#2E1C0C; --act-fg:#FFB877; --act-line:#B8651E;
+  --wait-bg:#1E1E21; --wait-fg:#BDBCB8; --wait-mid:#5E5D5A;
+  --win-bg:#10291A; --win-fg:#8ED9AA; --win-mid:#46B874;
+  --off-bg:#1B1B1E; --off-fg:#8E8D8A; --off-mid:#3A3A3E; --res-mid:#6E6250;
+  --panel:#18181B; --panel-2:#222226; --panel-ink:#EDECEA; --panel-muted:#9C9B97; --signal:#FF9A3D;
+  --glass:rgba(46,46,50,.62); --glass-edge:rgba(255,255,255,.12); --glass-shadow:0 10px 30px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.06) inset;
+}}
+:root[data-theme="dark"]{
+  --ground:#0B0B0C; --ground-2:#0B0B0C; --surface:#161618; --sunk:#202023; --ink:#EDECEA; --muted:#9C9B97; --line:#26262A;
+  --accent:#FF9A3D; --accent-ink:#1A0E03; --accent-text:#FFAE62; --focus:#FF9A3D; --accent-soft:#2E1C0C; --accent-deep:#FFC48F;
+  --act-bg:#2E1C0C; --act-fg:#FFB877; --act-line:#B8651E;
+  --wait-bg:#1E1E21; --wait-fg:#BDBCB8; --wait-mid:#5E5D5A;
+  --win-bg:#10291A; --win-fg:#8ED9AA; --win-mid:#46B874;
+  --off-bg:#1B1B1E; --off-fg:#8E8D8A; --off-mid:#3A3A3E; --res-mid:#6E6250;
+  --panel:#18181B; --panel-2:#222226; --panel-ink:#EDECEA; --panel-muted:#9C9B97; --signal:#FF9A3D;
+  --glass:rgba(46,46,50,.62); --glass-edge:rgba(255,255,255,.12); --glass-shadow:0 10px 30px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.06) inset;
+}
+.linkbtn,.summary .linkbtn,.detail a{color:var(--accent-text)}
+.tabbar .lens{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.hbtn{background:var(--signal); color:#141416}
+.hbtn.ghost{background:rgba(255,255,255,.1); color:var(--panel-ink)}
+.chip[aria-pressed="true"]{background:var(--ink); color:var(--ground)}
+.step.cur .dot{border-color:var(--accent); background:var(--accent-soft)}
+.step.cur .lbl span{color:var(--accent-text)}
+.trow .now{background:var(--ink); color:var(--ground)}
+.tb-badge{background:var(--accent); color:#141416}
