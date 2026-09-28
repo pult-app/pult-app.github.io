@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { fmtDate, today } from '../lib/dates'
 import { companyName, daysWord, KINDS } from '../lib/domain'
 import { insights, WEEK_GOAL, type Outcome } from '../lib/insights'
@@ -8,15 +8,36 @@ const OUTCOME: Record<Outcome, string> = { live: 'Живой ответ', reject
 const WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб']
 const pct = (a: number, b: number) => b ? Math.round(a * 100 / b) : 0
 
+/** Число досчитывается от нуля за ~0,7 с (как кольца активности); при «уменьшить движение» сразу итог. */
+function useCountUp(target: number) {
+  const [n, setN] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches ? target : 0)
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setN(target); return }
+    let raf = 0
+    const t0 = performance.now()
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / 700)
+      setN(Math.round(target * (1 - Math.pow(1 - p, 3))))
+      if (p < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    // Кадры не идут в фоновой вкладке: итог ставим в любом случае.
+    const done = window.setTimeout(() => { cancelAnimationFrame(raf); setN(target) }, 800)
+    return () => { cancelAnimationFrame(raf); clearTimeout(done) }
+  }, [target])
+  return n
+}
+
 /** Кольцо цели на неделю: доля от WEEK_GOAL, число внутри. */
 function Ring({ value, goal }: { value: number; goal: number }) {
+  const shown = useCountUp(value)
   const r = 44, c = 2 * Math.PI * r, p = Math.min(1, value / goal)
   return (
     <svg className="ring" viewBox="0 0 108 108" role="img" aria-label={`${value} из ${goal} откликов за 7 дней`}>
       <circle cx="54" cy="54" r={r} fill="none" stroke="currentColor" strokeOpacity=".14" strokeWidth="10" />
-      <circle cx="54" cy="54" r={r} fill="none" stroke="var(--signal)" strokeWidth="10" strokeLinecap="round"
+      <circle className="arc" cx="54" cy="54" r={r} fill="none" stroke="var(--signal)" strokeWidth="10" strokeLinecap="round"
         strokeDasharray={`${c * p} ${c}`} transform="rotate(-90 54 54)" />
-      <text x="54" y="54" textAnchor="middle" dominantBaseline="central" className="ring-n">{value}</text>
+      <text x="54" y="54" textAnchor="middle" dominantBaseline="central" className="ring-n">{shown}</text>
       <text x="54" y="76" textAnchor="middle" className="ring-l">из {goal}</text>
     </svg>
   )
@@ -37,7 +58,7 @@ function Days({ perDay }: { perDay: { day: string; n: number }[] }) {
         {perDay.map((x, i) => (
           <button key={x.day} role="listitem" className={'bar-col' + (i === sel ? ' on' : '')} onClick={() => setSel(i)}
             aria-label={`${fmtDate(x.day)}: ${x.n}`}>
-            <i style={{ height: x.n ? Math.max(6, x.n / max * 100) + '%' : '3px' }} className={x.n ? '' : 'zero'} />
+            <i style={{ height: x.n ? Math.max(6, x.n / max * 100) + '%' : '3px', '--i': i } as CSSProperties} className={x.n ? '' : 'zero'} />
           </button>))}
       </div>
       <div className="bars-axis"><span>{fmtDate(perDay[0].day)}</span><span>{fmtDate(perDay[7].day)}</span><span>сегодня</span></div>
@@ -46,11 +67,11 @@ function Days({ perDay }: { perDay: { day: string; n: number }[] }) {
 }
 
 /** Горизонтальная полоса с подписью слева и значением справа. */
-function Row({ label, n, of, note }: { label: string; n: number; of: number; note?: string }) {
+function Row({ label, n, of, note, i = 0 }: { label: string; n: number; of: number; note?: string; i?: number }) {
   return (
     <div className="hrow">
       <div className="hrow-top"><span>{label}</span><span><b className="num">{n}</b>{note && <em>{note}</em>}</span></div>
-      <div className="hbar"><i style={{ width: of ? Math.max(n ? 2 : 0, n / of * 100) + '%' : 0 }} /></div>
+      <div className="hbar"><i style={{ width: of ? Math.max(n ? 2 : 0, n / of * 100) + '%' : 0, '--i': i } as CSSProperties} /></div>
     </div>
   )
 }
@@ -81,19 +102,19 @@ export function Insights({ data }: { data: PultData }) {
       <div className="ins-card">
         <div className="ins-head"><h2>Воронка</h2><span>от поданных</span></div>
         <Row label="Подано" n={x.total} of={x.total} />
-        <Row label="Ответили" n={x.replied} of={x.total} note={pct(x.replied, x.total) + '%'} />
-        <Row label="Отбор: тест или собес" n={x.selected} of={x.total} note={pct(x.selected, x.total) + '%'} />
-        <Row label="Оффер" n={x.offers} of={x.total} note={pct(x.offers, x.total) + '%'} />
+        <Row i={1} label="Ответили" n={x.replied} of={x.total} note={pct(x.replied, x.total) + '%'} />
+        <Row i={2} label="Отбор: тест или собес" n={x.selected} of={x.total} note={pct(x.selected, x.total) + '%'} />
+        <Row i={3} label="Оффер" n={x.offers} of={x.total} note={pct(x.offers, x.total) + '%'} />
       </div>
 
       <div className="ins-card">
         <div className="ins-head"><h2>Чем отвечают</h2><span>итог по каждому отклику</span></div>
-        {(['live', 'reject', 'ack', 'silent'] as Outcome[]).map(o => <Row key={o} label={OUTCOME[o]} n={x.outcomes[o]} of={x.total} note={pct(x.outcomes[o], x.total) + '%'} />)}
+        {(['live', 'reject', 'ack', 'silent'] as Outcome[]).map((o, i) => <Row key={o} i={i} label={OUTCOME[o]} n={x.outcomes[o]} of={x.total} note={pct(x.outcomes[o], x.total) + '%'} />)}
       </div>
 
       <div className="ins-card">
         <div className="ins-head"><h2>Каналы</h2><span>сколько подано и доля ответов</span></div>
-        {x.channels.map(c => <Row key={c.name} label={c.name} n={c.n} of={topChannel} note={'ответили ' + pct(c.replied, c.n) + '%'} />)}
+        {x.channels.map((c, i) => <Row key={c.name} i={i} label={c.name} n={c.n} of={topChannel} note={'ответили ' + pct(c.replied, c.n) + '%'} />)}
       </div>
 
       <div className="ins-card">

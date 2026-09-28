@@ -415,3 +415,37 @@ html[data-dir="back"]::view-transition-new(root){animation:vt-in-l .32s var(--ea
 .ins-more summary::-webkit-details-marker{display:none}
 .ins-line{display:flex; justify-content:space-between; gap:10px; font-size:14px; padding:8px 0; border-top:1px solid var(--line)}
 .ins-line .num{color:var(--muted); font-size:13px; white-space:nowrap}
+
+/* ---------- Плавность v1.4 (29.09): только transform и opacity, пружины как в iOS ---------- */
+body{overscroll-behavior-y:contain}
+@media (prefers-reduced-motion:no-preference){
+  /* Нажатие: вдавливается за 80 мс, отпускается пружиной */
+  .vc,.tile,.hbtn,.btn,.chip,.askgrid button,.icon-btn,.trow .go,.mcard4,.bar-col,.backlink,.nb-back{
+    transition:transform .42s cubic-bezier(.3,1.5,.5,1), background-color .2s, color .2s, opacity .2s}
+  .vc:active,.tile:active,.hbtn:active,.btn:active,.chip:active,.askgrid button:active,.icon-btn:active,.mcard4:active{transform:scale(.965); transition-duration:.08s; transition-timing-function:ease-out}
+  .bar-col:active,.backlink:active,.nb-back:active,.trow .go:active{opacity:.55; transition-duration:.06s}
+  .tabbar button{transition:transform .38s cubic-bezier(.3,1.6,.5,1), color .12s}
+  .tabbar button:active{transform:scale(.88); transition-duration:.07s}
+
+  /* Раскрывающиеся блоки: содержимое выезжает и проявляется */
+  details[open] > :not(summary){animation:reveal .28s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes reveal{from{opacity:0; transform:translateY(-6px)}}
+
+  /* Тост уезжает вниз, а не исчезает рывком */
+  .toast.out{animation:toast-out .22s ease-in forwards}
+  @keyframes toast-out{to{opacity:0; transform:translateY(14px) scale(.96)}}
+
+  /* «Ещё»: кольцо прорисовывается, столбцы и полосы вырастают по очереди */
+  .ring .arc{animation:ring-draw .9s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes ring-draw{from{stroke-dasharray:0 1000}}
+  .bar-col i{transform-origin:bottom; animation:grow-y .55s cubic-bezier(.2,.9,.3,1.1) both; animation-delay:calc(var(--i, 0) * 28ms)}
+  @keyframes grow-y{from{transform:scaleY(0)}}
+  .hbar i{transform-origin:left; animation:grow-x .6s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--i, 0) * 40ms)}
+  @keyframes grow-x{from{transform:scaleX(0)}}
+
+  /* Переход в карточку вакансии: быстрый старт и мягкая посадка, как push в iOS */
+  html[data-dir="fwd"]::view-transition-old(root){animation:vt-out-l .36s cubic-bezier(.2,.9,.25,1) both}
+  html[data-dir="fwd"]::view-transition-new(root){animation:vt-in-r .36s cubic-bezier(.2,.9,.25,1) both}
+  html[data-dir="back"]::view-transition-old(root){animation:vt-out-r .32s cubic-bezier(.2,.9,.25,1) both}
+  html[data-dir="back"]::view-transition-new(root){animation:vt-in-l .32s cubic-bezier(.2,.9,.25,1) both}
+}

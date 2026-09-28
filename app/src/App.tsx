@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { clearCache, configured, ensureByName, insert, loadAll, readCache, slug, supabase, update } from './lib/api'
 import { days, fmtDate, today } from './lib/dates'
@@ -15,7 +15,7 @@ import { ThemeToggle } from './components/ThemeToggle'
 import { Icons } from './components/icons'
 import { CalendarLink } from './components/CalendarLink'
 import { PullToRefresh, Skeleton, TabBar, Title, Toaster } from './components/native'
-import { toast } from './lib/ux'
+import { scrollToTop, toast, transition } from './lib/ux'
 import type { NewRequest } from './components/AskClaude'
 
 export type Tab = 'today' | 'funnel' | 'inbox' | 'study' | 'more'
@@ -114,16 +114,31 @@ export default function App() {
   const [ftab, setFtab] = useState<FunnelTab | null>(null)
   const [cards, setCards] = useState(location.hash === '#train')
 
-  const setTab = (t: Tab) => {
+  // Каждая вкладка помнит, где её оставили (как в iOS); переход по ссылке внутри приложения открывает экран сверху.
+  const scrollMemo = useRef<Partial<Record<Tab, number>>>({})
+  const pendingScroll = useRef<number | null>(null)
+  const setTab = (t: Tab, fromTop = false) => {
+    scrollMemo.current[tab] = window.scrollY
+    pendingScroll.current = fromTop ? 0 : (scrollMemo.current[t] ?? 0)
     setTabState(t)
     history.replaceState(null, '', '#' + t)
     try { localStorage.setItem('pult-tab', t) } catch { /* пусто */ }
-    window.scrollTo({ top: 0 })
   }
+  useLayoutEffect(() => {
+    if (pendingScroll.current === null) return
+    window.scrollTo(0, pendingScroll.current)
+    pendingScroll.current = null
+  }, [tab])
   const go: Go = (t, o = {}) => {
     if (t === 'funnel') { setOpenVacancy(o.vacancy ?? null); if (o.ftab) setFtab(o.ftab) }
     if (t === 'study') setCards(!!o.cards)
-    setTab(t)
+    setTab(t, true)
+  }
+  /** Нажатие на вкладку: чужая открывается там, где её оставили; активная сначала закрывает вложенный экран, потом плавно едет наверх. */
+  const pressTab = (t: Tab) => {
+    if (t !== tab) { setTab(t); return }
+    if (t === 'funnel' && openVacancy) { transition(() => setOpenVacancy(null), 'back'); return }
+    scrollToTop()
   }
 
   // Переход по #вкладке в адресе (из пуша или закладки) переключает экран без перезагрузки.
@@ -250,7 +265,7 @@ export default function App() {
         </section>}
       </>}
 
-      <TabBar items={TABS.map(x => ({ ...x, icon: Icons[x.id] }))} value={tab} onPick={t => go(t)}
+      <TabBar items={TABS.map(x => ({ ...x, icon: Icons[x.id] }))} value={tab} onPick={pressTab}
         badges={Object.fromEntries(Object.entries(badges).map(([k, b]) => [k, b?.n ?? 0]))} />
       <Toaster />
       <PullToRefresh refresh={refresh} />

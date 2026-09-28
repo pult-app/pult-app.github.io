@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { days, fmtDate, today } from '../lib/dates'
 import { companyName, daysWord, FUNNEL_TABS, funnelTab, KINDS, messagesFor, stageOf, STATUSES, vacancyState, type FunnelTab, type StateView } from '../lib/domain'
 import type { PultData, Vacancy, VacancyStatus } from '../lib/types'
@@ -147,6 +147,15 @@ export function Funnel(p: Props) {
   const [addMsg, setAddMsg] = useState('')
   const [q, setQ] = useState('')
 
+  // Список помнит прокрутку: вакансия открывается сверху, «Назад» возвращает ровно туда, где был палец.
+  const listY = useRef(0)
+  const wasOpen = useRef(open)
+  useLayoutEffect(() => {
+    if (open && !wasOpen.current) window.scrollTo(0, 0)
+    if (!open && wasOpen.current) window.scrollTo(0, listY.current)
+    wasOpen.current = open
+  }, [open])
+
   const openV = open ? data.vacancies.find(v => v.id === open) : null
   if (openV) return <VacancyScreen key={openV.id} v={openV} data={data} canWrite={canWrite} onBack={() => transition(() => setOpen(null), 'back')}
     onStatus={p.onStatus} onSave={p.onSave} onFollowed={p.onFollowed} onAsk={p.onAsk} onTrain={p.onTrain} />
@@ -194,7 +203,7 @@ export function Funnel(p: Props) {
         {list.length ? list.map(({ v, st }) => {
           const n = stageOf(v, data.messages)
           return (
-            <button key={v.id} className="vc" onClick={() => transition(() => { setOpen(v.id); window.scrollTo({ top: 0 }) }, 'fwd')}>
+            <button key={v.id} className="vc" onClick={() => { listY.current = window.scrollY; transition(() => setOpen(v.id), 'fwd') }}>
               <span className="hd">
                 <span className="nm"><span className="co">{companyName(v)}</span><span className="rl">{v.title}</span></span>
                 <span className={'spill ' + st.tone}>{st.label}</span>

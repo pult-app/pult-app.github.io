@@ -88,20 +88,24 @@ export function Swipe({ children, label, onAction, disabled }: { children: React
 
 /** Тост над таб-баром, живёт 4 секунды; кнопка «Вернуть» отменяет действие. */
 export function Toaster() {
-  const [t, setT] = useState<(ToastMsg & { k: number }) | null>(null)
+  const [t, setT] = useState<(ToastMsg & { k: number; out?: boolean }) | null>(null)
   useEffect(() => {
-    let timer = 0
+    let timer = 0, gone = 0
     const on = (e: Event) => {
       const d = (e as CustomEvent<ToastMsg>).detail
+      clearTimeout(timer); clearTimeout(gone)
       setT({ ...d, k: Date.now() })
-      clearTimeout(timer); timer = window.setTimeout(() => setT(null), 4000)
+      timer = window.setTimeout(() => {
+        setT(x => x && { ...x, out: true })
+        gone = window.setTimeout(() => setT(null), 220)
+      }, 4000)
     }
     window.addEventListener('pult-toast', on)
-    return () => { window.removeEventListener('pult-toast', on); clearTimeout(timer) }
+    return () => { window.removeEventListener('pult-toast', on); clearTimeout(timer); clearTimeout(gone) }
   }, [])
   return (
     <div className="toast-host" role="status" aria-live="polite">
-      {t && <div key={t.k} className="toast">
+      {t && <div key={t.k} className={'toast' + (t.out ? ' out' : '')}>
         <span>{t.text}</span>
         {t.action && <button onClick={() => { t.action!.run(); setT(null) }}>{t.action.label}</button>}
       </div>}
