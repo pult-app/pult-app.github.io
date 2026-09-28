@@ -19,7 +19,7 @@ const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 /** Смена экрана через View Transitions: вперёд, назад или просто сменой вкладки. */
 export function transition(fn: () => void, dir: 'fwd' | 'back' | 'tab' = 'tab') {
   const d = document as Document & { startViewTransition?: (cb: () => void) => { finished: Promise<void> } }
-  if (!d.startViewTransition || reduced()) { fn(); return }
+  if (!d.startViewTransition || reduced() || document.visibilityState !== 'visible') { fn(); return }
   document.documentElement.dataset.dir = dir
   const vt = d.startViewTransition(() => flushSync(fn))
   vt.finished.finally(() => { delete document.documentElement.dataset.dir })
