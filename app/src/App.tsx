@@ -25,6 +25,9 @@ const TABS: { id: Tab; label: string }[] = [
 /** Старые адреса вкладок (закладки, пуши): #train и #stats. */
 const LEGACY: Record<string, Tab> = { train: 'study', stats: 'more' }
 
+/** Демо только в dev-сборке: снимок данных из public/demo.json (файл в .gitignore), без входа. */
+const DEMO = import.meta.env.DEV && new URLSearchParams(location.search).has('demo')
+
 function hashTab(): Tab | null {
   const h = location.hash.slice(1)
   if (TABS.some(t => t.id === h)) return h as Tab
@@ -101,11 +104,11 @@ function PasswordBox() {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [authReady, setAuthReady] = useState(false)
-  const [data, setData] = useState<PultData | null>(() => readCache())
+  const [data, setData] = useState<PultData | null>(() => DEMO ? null : readCache())
   const [offline, setOffline] = useState(!navigator.onLine)
   const [error, setError] = useState('')
   const [tab, setTabState] = useState<Tab>(initialTab)
-  const [openVacancy, setOpenVacancy] = useState<string | null>(null)
+  const [openVacancy, setOpenVacancy] = useState<string | null>(() => DEMO ? new URLSearchParams(location.search).get('open') : null)
   const [ftab, setFtab] = useState<FunnelTab | null>(null)
   const [cards, setCards] = useState(location.hash === '#train')
 
@@ -141,6 +144,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (DEMO) { fetch(import.meta.env.BASE_URL + 'demo.json').then(r => r.json()).then(setData); return }
     if (!session) return
     refresh()
     const onVis = () => { if (document.visibilityState === 'visible') refresh() }
@@ -165,8 +169,8 @@ export default function App() {
   }
 
   if (!configured) return <div className="wrap"><p className="banner">Не заданы VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.</p></div>
-  if (!authReady) return null
-  if (!session) return <div className="wrap"><Login /></div>
+  if (!authReady && !DEMO) return null
+  if (!session && !DEMO) return <div className="wrap"><Login /></div>
 
   const canWrite = !offline
   const t = today()
@@ -182,8 +186,8 @@ export default function App() {
       : { text: loaded ? `данные на ${loaded}` : 'загрузка', cls: 'muted' }
 
   const badges: Partial<Record<Tab, { n: number; hot: boolean }>> = data ? {
-    inbox: { n: data.messages.filter(m => !m.is_done && m.kind !== 'ack').length, hot: data.messages.some(m => !m.is_done && ['invite', 'test', 'offer', 'question'].includes(m.kind)) },
-    study: { n: data.works.filter(w => w.status !== 'submitted' && w.deadline && days(t, w.deadline) <= 3).length + data.cards.filter(c => c.due_on <= t).length, hot: data.works.some(w => w.status !== 'submitted' && !!w.deadline && days(t, w.deadline) < 0) },
+    inbox: { n: data.messages.filter(m => !m.is_done && ['invite', 'test', 'offer', 'question'].includes(m.kind)).length, hot: true },
+    study: { n: data.works.filter(w => w.status !== 'submitted' && w.deadline && days(t, w.deadline) <= 3).length, hot: data.works.some(w => w.status !== 'submitted' && !!w.deadline && days(t, w.deadline) < 0) },
   } : {}
 
   const onStatus = (v: Vacancy, s: VacancyStatus) => act(() => update('vacancy', v.id, statusPatch(v, s, t)))
