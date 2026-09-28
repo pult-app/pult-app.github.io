@@ -1,24 +1,21 @@
 import { useState, type ReactElement } from 'react'
 
-export type ThemeMode = 'system' | 'light' | 'dark'
+export type ThemeMode = 'light' | 'dark'
 const KEY = 'pult-theme'
-const ORDER: ThemeMode[] = ['system', 'light', 'dark']
-const LABEL: Record<ThemeMode, string> = { system: 'Тема как в системе', light: 'Светлая тема', dark: 'Тёмная тема' }
 
+/** Сохранённая тема; при первом запуске берём тему системы. Режима «как в системе» больше нет (решение Германа 29.09). */
 export function readTheme(): ThemeMode {
-  try { const v = localStorage.getItem(KEY) as ThemeMode | null; return v && ORDER.includes(v) ? v : 'system' } catch { return 'system' }
+  try { const v = localStorage.getItem(KEY); if (v === 'light' || v === 'dark') return v } catch { /* пусто */ }
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 /** Проставить data-theme до первого рендера, чтобы не мигало. */
 export function applyTheme(mode: ThemeMode) {
-  const root = document.documentElement
-  if (mode === 'system') delete root.dataset.theme; else root.dataset.theme = mode
-  const dark = mode === 'dark' || (mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
-  document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', dark ? '#0B0B0C' : '#F1F0EE'))
+  document.documentElement.dataset.theme = mode
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', mode === 'dark' ? '#0B0B0C' : '#F1F0EE'))
 }
 
 const ICON: Record<ThemeMode, ReactElement> = {
-  system: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" /></svg>,
   light: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>,
   dark: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg>,
 }
@@ -26,9 +23,10 @@ const ICON: Record<ThemeMode, ReactElement> = {
 export function ThemeToggle() {
   const [mode, setMode] = useState<ThemeMode>(readTheme)
   const next = () => {
-    const m = ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length]
+    const m: ThemeMode = mode === 'dark' ? 'light' : 'dark'
     setMode(m); applyTheme(m)
     try { localStorage.setItem(KEY, m) } catch { /* пусто */ }
   }
-  return <button className="icon-btn" onClick={next} title={LABEL[mode] + '. Нажми, чтобы сменить'} aria-label={LABEL[mode]}>{ICON[mode]}</button>
+  const label = mode === 'dark' ? 'Тёмная тема. Нажми для светлой' : 'Светлая тема. Нажми для тёмной'
+  return <button className="icon-btn" onClick={next} title={label} aria-label={label}>{ICON[mode]}</button>
 }

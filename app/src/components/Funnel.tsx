@@ -182,7 +182,7 @@ export function Funnel(p: Props) {
         </div>
       </div>
       <div className="ftabs" aria-label="Группы вакансий">
-        {FUNNEL_TABS.map(x => <button key={x.id} className="chip" aria-pressed={tab === x.id} onClick={() => transition(() => p.setTab(x.id))}>{x.label}<b>{count(x.id)}</b></button>)}
+        {FUNNEL_TABS.map(x => <button key={x.id} className="chip" aria-pressed={tab === x.id} onClick={() => p.setTab(x.id)}>{x.label}<b>{count(x.id)}</b></button>)}
       </div>
       <label className="askline search4">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>

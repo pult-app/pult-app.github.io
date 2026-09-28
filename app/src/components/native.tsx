@@ -120,29 +120,50 @@ export function Skeleton() {
   )
 }
 
-/** Потянуть вниз с самого верха, чтобы обновить (в приложении с экрана «Домой» нет кнопки обновления). */
-export function usePullToRefresh(refresh: () => Promise<unknown>) {
-  const [pull, setPull] = useState(0)
-  const [busy, setBusy] = useState(false)
+/** Потянуть вниз с самого верха, чтобы обновить (в приложении с экрана «Домой» нет кнопки обновления).
+ *  Индикатор двигается напрямую через style в requestAnimationFrame: React не перерисовывает экран на каждый сдвиг пальца. */
+export function PullToRefresh({ refresh }: { refresh: () => Promise<unknown> }) {
+  const el = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    let y0: number | null = null, dist = 0
-    const ts = (e: TouchEvent) => { y0 = window.scrollY <= 0 && !busy ? e.touches[0].clientY : null; dist = 0 }
+    const node = el.current
+    if (!node) return
+    const MAX = 90, FIRE = 64
+    let y0: number | null = null, pull = 0, busy = false, frame = 0
+    const paint = (p: number, animate: boolean) => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        node.style.transition = animate ? 'transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s' : 'none'
+        node.style.transform = `translate3d(0, ${p - 44}px, 0) rotate(${Math.min(p, FIRE) * 4.5}deg)`
+        node.style.opacity = String(Math.min(1, p / 40))
+        node.classList.toggle('ready', p >= FIRE)
+      })
+    }
+    const ts = (e: TouchEvent) => { y0 = !busy && window.scrollY <= 0 ? e.touches[0].clientY : null; pull = 0 }
     const tm = (e: TouchEvent) => {
       if (y0 === null) return
-      dist = Math.max(0, e.touches[0].clientY - y0)
-      if (dist > 0 && window.scrollY <= 0) setPull(Math.min(dist * 0.55, 90))
+      const d = e.touches[0].clientY - y0
+      if (d <= 0 || window.scrollY > 0) { if (pull) { pull = 0; paint(0, false) } return }
+      pull = Math.min(MAX, d * 0.5)
+      paint(pull, false)
     }
     const te = () => {
-      if (y0 !== null && dist * 0.55 >= 64) {
-        haptic(15); setBusy(true)
-        refresh().finally(() => { setBusy(false); setPull(0) })
-      } else setPull(0)
+      if (y0 === null) return
       y0 = null
+      if (pull >= FIRE) {
+        haptic(15); busy = true; node.classList.add('busy'); paint(FIRE, true)
+        refresh().finally(() => { busy = false; node.classList.remove('busy'); paint(0, true) })
+      } else paint(0, true)
+      pull = 0
     }
     window.addEventListener('touchstart', ts, { passive: true })
     window.addEventListener('touchmove', tm, { passive: true })
     window.addEventListener('touchend', te)
-    return () => { window.removeEventListener('touchstart', ts); window.removeEventListener('touchmove', tm); window.removeEventListener('touchend', te) }
-  }, [refresh, busy])
-  return { pull: busy ? 64 : pull, busy }
+    window.addEventListener('touchcancel', te)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('touchstart', ts); window.removeEventListener('touchmove', tm)
+      window.removeEventListener('touchend', te); window.removeEventListener('touchcancel', te)
+    }
+  }, [refresh])
+  return <div ref={el} className="ptr" aria-hidden style={{ opacity: 0, transform: 'translate3d(0,-44px,0)' }}><i /></div>
 }

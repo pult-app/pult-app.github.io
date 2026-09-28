@@ -12,7 +12,7 @@ const demoTheme = import.meta.env.DEV ? new URLSearchParams(location.search).get
 applyTheme(demoTheme === 'light' || demoTheme === 'dark' ? demoTheme : readTheme())
 // В демо рамка телефона: ?w=390 рисует приложение в окне 390x844 (fixed-элементы считаются от рамки).
 const demoW = import.meta.env.DEV ? new URLSearchParams(location.search).get('w') : null
-if (demoW) document.getElementById('root')!.style.cssText = 'width:' + demoW + 'px;height:844px;overflow:auto;transform:translateZ(0)'
+if (demoW) document.getElementById('root')!.style.cssText = 'width:' + demoW + 'px;height:' + (new URLSearchParams(location.search).get('h') ?? '844') + 'px;overflow:auto;transform:translateZ(0)'
 
 
 createRoot(document.getElementById('root')!).render(

@@ -9,13 +9,13 @@ import { Funnel, type NewVacancy } from './components/Funnel'
 import { Inbox } from './components/Inbox'
 import { Study } from './components/Study'
 import { Trainer } from './components/Trainer'
-import { Stats } from './components/Stats'
+import { Insights } from './components/Insights'
 import { PushToggle } from './components/PushToggle'
 import { ThemeToggle } from './components/ThemeToggle'
 import { Icons } from './components/icons'
 import { CalendarLink } from './components/CalendarLink'
-import { Skeleton, TabBar, Title, Toaster, usePullToRefresh } from './components/native'
-import { toast, transition } from './lib/ux'
+import { PullToRefresh, Skeleton, TabBar, Title, Toaster } from './components/native'
+import { toast } from './lib/ux'
 import type { NewRequest } from './components/AskClaude'
 
 export type Tab = 'today' | 'funnel' | 'inbox' | 'study' | 'more'
@@ -123,7 +123,7 @@ export default function App() {
   const go: Go = (t, o = {}) => {
     if (t === 'funnel') { setOpenVacancy(o.vacancy ?? null); if (o.ftab) setFtab(o.ftab) }
     if (t === 'study') setCards(!!o.cards)
-    transition(() => setTab(t))
+    setTab(t)
   }
 
   // Переход по #вкладке в адресе (из пуша или закладки) переключает экран без перезагрузки.
@@ -144,7 +144,6 @@ export default function App() {
     try { setData(await loadAll()); setOffline(false); setError('') }
     catch (e) { setError((e as Error).message) }
   }, [])
-  const ptr = usePullToRefresh(refresh)
 
   useEffect(() => {
     if (DEMO) { fetch(import.meta.env.BASE_URL + 'demo.json').then(r => r.json()).then(setData); return }
@@ -240,8 +239,9 @@ export default function App() {
             })} />}
         </section>}
         {tab === 'more' && <section className="scr">
-          <Title title="Ещё" sub={status.text} />
-          <Stats data={data} />
+          <Title title="Ещё" sub={'Цифры поиска работы · ' + status.text} />
+          <Insights data={data} />
+          <div className="sec-head" style={{ marginTop: 8 }}><h2>Настройки</h2></div>
           <CalendarLink />
           <PasswordBox />
           <button className="btn ghost" style={{ justifySelf: 'start', display: 'inline-flex', gap: 8, alignItems: 'center' }} onClick={() => { clearCache(); supabase.auth.signOut() }}>
@@ -253,7 +253,7 @@ export default function App() {
       <TabBar items={TABS.map(x => ({ ...x, icon: Icons[x.id] }))} value={tab} onPick={t => go(t)}
         badges={Object.fromEntries(Object.entries(badges).map(([k, b]) => [k, b?.n ?? 0]))} />
       <Toaster />
-      {ptr.pull > 0 && <div className={'ptr' + (ptr.busy ? ' busy' : '')} style={{ transform: `translateY(${ptr.pull - 30}px) rotate(${ptr.pull * 4}deg)`, opacity: Math.min(1, ptr.pull / 50) }}><i /></div>}
+      <PullToRefresh refresh={refresh} />
 
     </div>
   )
