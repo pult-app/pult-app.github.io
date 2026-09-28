@@ -120,7 +120,7 @@ export function vacancyState(v: Vacancy, messages: Message[], t: string): StateV
   const open = messages.find(m => m.vacancy_id === v.id && !m.is_done && ['invite', 'test', 'question', 'offer'].includes(m.kind))
   if (v.status === 'offer') return { label: 'Оффер', tone: 'win', group: 'action', hint: open?.action ?? 'Реши по офферу' }
   if (open) return { label: open.kind === 'invite' ? 'Зовут на встречу' : open.kind === 'test' ? 'Тестовое' : 'Нужен ответ', tone: 'action', group: 'action', hint: open.action ?? open.summary }
-  if (v.status === 'interview') return { label: 'Собеседование', tone: 'action', group: 'action', hint: v.next_step ?? 'Готовься к следующему этапу' }
+  if (v.status === 'interview') return { label: 'Собеседование', tone: 'win', group: 'action', hint: v.next_step ?? 'Готовься к следующему этапу' }
   if (v.status === 'test') return { label: 'Тестовое', tone: 'action', group: 'action', hint: v.next_step ?? 'Сделай тестовое' }
   if (v.status === 'applied') {
     const d = v.applied_on ? days(v.applied_on, t) : 0
@@ -132,4 +132,36 @@ export function vacancyState(v: Vacancy, messages: Message[], t: string): StateV
   if (v.status === 'reserve') return { label: 'В резерве', tone: 'wait', group: 'wait', hint: v.next_step ?? '' }
   if (v.status === 'found') return { label: 'Не подана', tone: 'todo', group: 'todo', hint: v.next_step ?? 'Подать отклик' }
   return { label: v.status === 'reject' ? 'Отказ' : 'Не подходит', tone: 'closed', group: 'closed', hint: '' }
+}
+
+// ---------- Дизайн v4: вкладки воронки и этапы ----------
+
+export type FunnelTab = 'sel' | 'wait' | 'todo' | 'closed'
+export const FUNNEL_TABS: { id: FunnelTab; label: string }[] = [
+  { id: 'sel', label: 'В отборе' }, { id: 'wait', label: 'Ждём' }, { id: 'todo', label: 'Не подано' }, { id: 'closed', label: 'Закрыто' },
+]
+
+export function funnelTab(v: Vacancy): FunnelTab {
+  if (v.status === 'test' || v.status === 'interview' || v.status === 'offer') return 'sel'
+  if (v.status === 'applied' || v.status === 'reserve') return 'wait'
+  if (v.status === 'found') return 'todo'
+  return 'closed'
+}
+
+/** Сколько из четырёх этапов пройдено: отклик, ответ, отбор, оффер. */
+export function stageOf(v: Vacancy, messages: Message[]): number {
+  if (v.status === 'offer') return 4
+  if (v.status === 'test' || v.status === 'interview') return 3
+  if (v.status === 'found' || (v.status === 'skip' && !v.applied_on)) return 0
+  const replied = messages.some(m => m.vacancy_id === v.id && m.kind !== 'reject')
+  return replied ? 2 : 1
+}
+
+const RANK: Record<string, number> = { 'Оффер': 0, 'Зовут на встречу': 1, 'Нужен ответ': 1, 'Тестовое': 2, 'Собеседование': 3 }
+
+/** Одно самое важное дело по поиску работы для карточки «Следующий шаг». */
+export function nextStep(d: Pick<PultData, 'vacancies' | 'messages'>, t: string): { v: Vacancy; st: StateView } | null {
+  const list = d.vacancies.map(v => ({ v, st: vacancyState(v, d.messages, t) })).filter(x => x.st.group === 'action')
+  list.sort((a, b) => (RANK[a.st.label] ?? 5) - (RANK[b.st.label] ?? 5) || String(b.v.updated_at).localeCompare(String(a.v.updated_at)))
+  return list[0] ?? null
 }

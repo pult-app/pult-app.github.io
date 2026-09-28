@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { clearCache, configured, ensureByName, insert, loadAll, readCache, slug, supabase, update } from './lib/api'
-import { days, fmtDate, nowHM, today } from './lib/dates'
-import { grade, statusPatch } from './lib/domain'
+import { days, fmtDate, today } from './lib/dates'
+import { grade, statusPatch, type FunnelTab } from './lib/domain'
 import type { Flashcard, PultData, Vacancy, VacancyStatus } from './lib/types'
 import { Today } from './components/Today'
 import { Funnel, type NewVacancy } from './components/Funnel'
@@ -13,21 +13,26 @@ import { Stats } from './components/Stats'
 import { PushToggle } from './components/PushToggle'
 import { ThemeToggle } from './components/ThemeToggle'
 import { Icons } from './components/icons'
-import { weekInfo } from './lib/schedule'
 import { CalendarLink } from './components/CalendarLink'
 import type { NewRequest } from './components/AskClaude'
 
-export type Tab = 'today' | 'funnel' | 'inbox' | 'study' | 'train' | 'stats'
+export type Tab = 'today' | 'funnel' | 'inbox' | 'study' | 'more'
+export type Go = (t: Tab, o?: { vacancy?: string; ftab?: FunnelTab; cards?: boolean }) => void
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'today', label: 'Сегодня' }, { id: 'funnel', label: 'Воронка' }, { id: 'inbox', label: 'Входящие' },
-  { id: 'study', label: 'Учёба' }, { id: 'train', label: 'Тренажёр' }, { id: 'stats', label: 'Аналитика' },
+  { id: 'today', label: 'Сегодня' }, { id: 'funnel', label: 'Воронка' }, { id: 'inbox', label: 'Письма' },
+  { id: 'study', label: 'Учёба' }, { id: 'more', label: 'Ещё' },
 ]
+/** Старые адреса вкладок (закладки, пуши): #train и #stats. */
+const LEGACY: Record<string, Tab> = { train: 'study', stats: 'more' }
 
-const SHORT: Record<Tab, string> = { today: 'Сегодня', funnel: 'Воронка', inbox: 'Письма', study: 'Учёба', train: 'Карточки', stats: 'Цифры' }
-
+function hashTab(): Tab | null {
+  const h = location.hash.slice(1)
+  if (TABS.some(t => t.id === h)) return h as Tab
+  return LEGACY[h] ?? null
+}
 function initialTab(): Tab {
-  const h = location.hash.slice(1) as Tab
-  if (TABS.some(t => t.id === h)) return h
+  const h = hashTab()
+  if (h) return h
   try { const s = localStorage.getItem('pult-tab') as Tab | null; if (s && TABS.some(t => t.id === s)) return s } catch { /* пусто */ }
   return 'today'
 }
@@ -100,6 +105,9 @@ export default function App() {
   const [offline, setOffline] = useState(!navigator.onLine)
   const [error, setError] = useState('')
   const [tab, setTabState] = useState<Tab>(initialTab)
+  const [openVacancy, setOpenVacancy] = useState<string | null>(null)
+  const [ftab, setFtab] = useState<FunnelTab | null>(null)
+  const [cards, setCards] = useState(location.hash === '#train')
 
   const setTab = (t: Tab) => {
     setTabState(t)
@@ -107,10 +115,15 @@ export default function App() {
     try { localStorage.setItem('pult-tab', t) } catch { /* пусто */ }
     window.scrollTo({ top: 0 })
   }
+  const go: Go = (t, o = {}) => {
+    if (t === 'funnel') { setOpenVacancy(o.vacancy ?? null); if (o.ftab) setFtab(o.ftab) }
+    if (t === 'study') setCards(!!o.cards)
+    setTab(t)
+  }
 
   // Переход по #вкладке в адресе (из пуша или закладки) переключает экран без перезагрузки.
   useEffect(() => {
-    const onHash = () => { const h = location.hash.slice(1) as Tab; if (TABS.some(t => t.id === h)) setTabState(h) }
+    const onHash = () => { const h = hashTab(); if (h) setTabState(h) }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
@@ -157,20 +170,20 @@ export default function App() {
 
   const canWrite = !offline
   const t = today()
-  const h = +nowHM().slice(0, 2)
-  const greet = (h < 5 ? 'Доброй ночи' : h < 12 ? 'Доброе утро' : h < 18 ? 'Добрый день' : 'Добрый вечер') + ', Герман. ' +
-    new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow', weekday: 'long', day: 'numeric', month: 'long' })
   const run = data?.lastRun
   const runAt = run ? run.finished_at ?? run.started_at : null
   const runAgeH = runAt && data ? (Date.parse(data.loadedAt) - Date.parse(runAt)) / 36e5 : null
   const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })
   const loaded = data ? hhmm(data.loadedAt) : ''
-  const week = data?.schedule ? weekInfo(new Date(t + 'T12:00:00')) : null
+  const status = offline
+    ? { text: `офлайн, данные на ${loaded}`, cls: 'off' }
+    : runAt
+      ? { text: `агент обновил ${runAt.slice(0, 10) === t ? 'в' : fmtDate(runAt.slice(0, 10)) + ','} ${hhmm(runAt)}`, cls: runAgeH !== null && runAgeH > 12 ? 'warn' : 'muted' }
+      : { text: loaded ? `данные на ${loaded}` : 'загрузка', cls: 'muted' }
 
   const badges: Partial<Record<Tab, { n: number; hot: boolean }>> = data ? {
     inbox: { n: data.messages.filter(m => !m.is_done && m.kind !== 'ack').length, hot: data.messages.some(m => !m.is_done && ['invite', 'test', 'offer', 'question'].includes(m.kind)) },
-    study: { n: data.works.filter(w => w.status !== 'submitted' && w.deadline && days(t, w.deadline) <= 3).length, hot: data.works.some(w => w.status !== 'submitted' && !!w.deadline && days(t, w.deadline) < 0) },
-    train: { n: data.cards.filter(c => c.due_on <= t).length, hot: false },
+    study: { n: data.works.filter(w => w.status !== 'submitted' && w.deadline && days(t, w.deadline) <= 3).length + data.cards.filter(c => c.due_on <= t).length, hot: data.works.some(w => w.status !== 'submitted' && !!w.deadline && days(t, w.deadline) < 0) },
   } : {}
 
   const onStatus = (v: Vacancy, s: VacancyStatus) => act(() => update('vacancy', v.id, statusPatch(v, s, t)))
@@ -192,70 +205,58 @@ export default function App() {
     await insert('card_review', { flashcard_id: c.id, knew, box_before: c.box, box_after: next.box })
   })
 
+  const dueCards = data ? data.cards.filter(c => c.due_on <= t).length : 0
+  const topActions = <><ThemeToggle /><PushToggle /></>
+
   return (
     <div className="wrap">
-      <header className="hero">
-        <div className="hero-top">
-          <div>
-            <h1>Пульт</h1>
-            <p className="greet">{greet}</p>
-          </div>
-          <div className="hero-actions">
-            <ThemeToggle />
-            <PushToggle />
-            <button className="icon-btn" title="Выйти" aria-label="Выйти" onClick={() => { clearCache(); supabase.auth.signOut() }}>{Icons.logout}</button>
-          </div>
-        </div>
-        <div className="hero-chips">
-          {week && <span className="hchip">{week.num}-я неделя · {week.numerator ? 'числитель' : 'знаменатель'}</span>}
-          <span className={'hchip' + (offline ? ' off' : runAgeH !== null && runAgeH > 12 ? ' warn' : '')}>
-            {offline ? `офлайн, данные на ${loaded}` : runAt ? `агент: ${fmtDate(runAt.slice(0, 10))} ${hhmm(runAt)}` : loaded ? `данные на ${loaded}` : 'загрузка'}
-          </span>
-        </div>
-      </header>
-
       {error && <div className="banner" role="alert">Ошибка: {error} <button className="linkbtn" onClick={() => setError('')}>скрыть</button></div>}
 
-      <nav className="tabs" role="tablist">
-        {TABS.map(x => {
-          const b = badges[x.id]
-          return (
-            <button key={x.id} className="tab" role="tab" aria-selected={tab === x.id} onClick={() => setTab(x.id)}>
-              {x.label}{b && b.n > 0 && <span className={'badge' + (b.hot ? ' hot' : '')}>{b.n}</span>}
-            </button>)
-        })}
-      </nav>
-
       {!data ? <div className="empty">Загружаю…</div> : <>
-        {tab === 'today' && <Today data={data} canWrite={canWrite} goto={setTab}
+        {tab === 'today' && <Today data={data} canWrite={canWrite} goto={go} status={status} actions={topActions}
           onTaskDone={(id, done) => act(() => update('task', id, { is_done: done }))}
           onAddTask={row => act(() => insert('task', { ...row, created_by: 'owner' }))} onAsk={onAsk} />}
-        {tab === 'funnel' && <Funnel data={data} canWrite={canWrite} onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAdd={onAddVacancy} onAsk={onAsk} />}
+        {tab === 'funnel' && <Funnel data={data} canWrite={canWrite} open={openVacancy} setOpen={setOpenVacancy} tab={ftab} setTab={setFtab}
+          onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAdd={onAddVacancy} onAsk={onAsk} />}
         {tab === 'inbox' && <Inbox data={data} canWrite={canWrite} onDone={(id, done) => act(() => update('message', id, { is_done: done }))} />}
-        {tab === 'study' && <Study data={data} canWrite={canWrite}
-          onStatus={(id, s) => act(() => update('study_work', id, { status: s, updated_by: 'owner' }))}
-          onAdd={w => act(async () => {
-            const discipline_id = await ensureByName('discipline', w.discipline.trim())
-            await insert('study_work', { discipline_id, code: slug('w'), title: w.title.trim(), status: w.status, deadline: w.deadline || null })
-          })} />}
-        {tab === 'train' && <Trainer data={data} canWrite={canWrite} onGrade={onGrade} />}
-        {tab === 'stats' && <Stats data={data} />}
+        {tab === 'study' && <section className="scr">
+          <h1 className="screen">Учёба</h1>
+          <div className="seg">
+            <button className="chip" aria-pressed={!cards} onClick={() => setCards(false)}>Работы</button>
+            <button className="chip" aria-pressed={cards} onClick={() => setCards(true)}>Карточки{dueCards ? ' ' + dueCards : ''}</button>
+          </div>
+          {cards ? <Trainer data={data} canWrite={canWrite} onGrade={onGrade} /> : <Study data={data} canWrite={canWrite}
+            onStatus={(id, s) => act(() => update('study_work', id, { status: s, updated_by: 'owner' }))}
+            onAdd={w => act(async () => {
+              const discipline_id = await ensureByName('discipline', w.discipline.trim())
+              await insert('study_work', { discipline_id, code: slug('w'), title: w.title.trim(), status: w.status, deadline: w.deadline || null })
+            })} />}
+        </section>}
+        {tab === 'more' && <section className="scr">
+          <div>
+            <h1 className="screen">Ещё</h1>
+            <p className="screen-sub">{status.text}</p>
+          </div>
+          <Stats data={data} />
+          <CalendarLink />
+          <PasswordBox />
+          <button className="btn ghost" style={{ justifySelf: 'start', display: 'inline-flex', gap: 8, alignItems: 'center' }} onClick={() => { clearCache(); supabase.auth.signOut() }}>
+            <span style={{ width: 18, height: 18, display: 'inline-grid' }}>{Icons.logout}</span>Выйти</button>
+          <p className="foot-note">Данные приносит Claude: почта и hh.ru в 9:00, 14:00 и 20:00. Статусы и отметки можно менять здесь.</p>
+        </section>}
       </>}
-
-      {data && tab === 'stats' && <><CalendarLink /><PasswordBox /></>}
 
       <nav className="bnav" role="tablist" aria-label="Разделы">
         {TABS.map(x => {
           const b = badges[x.id]
           return (
-            <button key={x.id} role="tab" aria-selected={tab === x.id} onClick={() => setTab(x.id)}>
-              {Icons[x.id]}<span>{SHORT[x.id]}</span>
+            <button key={x.id} role="tab" aria-selected={tab === x.id} onClick={() => go(x.id)}>
+              {Icons[x.id]}<span>{x.label}</span>
               {b && b.n > 0 && <span className={'dot' + (b.hot ? ' hot' : '')}>{b.n}</span>}
             </button>)
         })}
       </nav>
 
-      <p className="note">Данные приносит Claude: почта и hh.ru в 9:00, 14:00 и 20:00. Статусы и отметки можно менять здесь.</p>
     </div>
   )
 }

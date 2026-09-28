@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, days, today } from './dates'
-import { agenda, followUps, grade, statusPatch } from './domain'
+import { agenda, followUps, funnelTab, grade, nextStep, stageOf, statusPatch } from './domain'
 import { lessonsFor, nextStudyDay, parseCell, weekInfo, type SchedulePayload } from './schedule'
 import type { PultData, Vacancy } from './types'
 
@@ -124,5 +124,30 @@ describe('понятное состояние вакансии', () => {
   })
   it('отказ закрыт', () => {
     expect(vacancyState(vacancy({ status: 'reject' }), [], '2026-09-27').group).toBe('closed')
+  })
+})
+
+describe('дизайн v4: вкладки и этапы воронки', () => {
+  const t = '2026-09-28'
+  it('статус раскладывается по вкладкам', () => {
+    expect(funnelTab(vacancy({ status: 'interview' }))).toBe('sel')
+    expect(funnelTab(vacancy({ status: 'reserve' }))).toBe('wait')
+    expect(funnelTab(vacancy({ status: 'found' }))).toBe('todo')
+    expect(funnelTab(vacancy({ status: 'skip' }))).toBe('closed')
+  })
+  it('этап: отклик без ответа 1, с ответом 2, собес 3, оффер 4', () => {
+    const v = vacancy({ id: 'v1', status: 'applied', applied_on: '2026-09-27' })
+    expect(stageOf(v, [])).toBe(1)
+    expect(stageOf(v, [{ vacancy_id: 'v1', kind: 'ack' } as never])).toBe(2)
+    expect(stageOf(v, [{ vacancy_id: 'v1', kind: 'reject' } as never])).toBe(1)
+    expect(stageOf(vacancy({ status: 'interview' }), [])).toBe(3)
+    expect(stageOf(vacancy({ status: 'offer' }), [])).toBe(4)
+    expect(stageOf(vacancy({ status: 'found' }), [])).toBe(0)
+  })
+  it('следующий шаг: оффер важнее собеседования, без дел пусто', () => {
+    const a = vacancy({ id: 'a', status: 'interview', applied_on: '2026-09-20' })
+    const b = vacancy({ id: 'b', status: 'offer', applied_on: '2026-09-20' })
+    expect(nextStep({ vacancies: [a, b], messages: [] }, t)?.v.id).toBe('b')
+    expect(nextStep({ vacancies: [vacancy({ status: 'applied', applied_on: t })], messages: [] }, t)).toBeNull()
   })
 })

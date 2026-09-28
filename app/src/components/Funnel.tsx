@@ -1,15 +1,20 @@
 import { useState, type FormEvent } from 'react'
-import { fmtDate, today } from '../lib/dates'
-import { companyName, KINDS, messagesFor, STATUSES, vacancyState, type Group, type StateView } from '../lib/domain'
+import { days, fmtDate, today } from '../lib/dates'
+import { companyName, daysWord, FUNNEL_TABS, funnelTab, KINDS, messagesFor, stageOf, STATUSES, vacancyState, type FunnelTab, type StateView } from '../lib/domain'
 import type { PultData, Vacancy, VacancyStatus } from '../lib/types'
 import { Empty, PillSelect } from './ui'
-import { AskClaude, RequestList, type NewRequest } from './AskClaude'
+import { AskBox, RequestList, type NewRequest } from './AskClaude'
+import { Icons } from './icons'
 
 export interface NewVacancy { company: string; title: string; status: VacancyStatus; work_format: string; applied_on: string; channel: string; url: string; deadline: string }
 
 interface Props {
   data: PultData
   canWrite: boolean
+  open: string | null
+  setOpen: (id: string | null) => void
+  tab: FunnelTab | null
+  setTab: (t: FunnelTab) => void
   onStatus: (v: Vacancy, s: VacancyStatus) => Promise<void>
   onSave: (id: string, patch: Partial<Vacancy>) => Promise<void>
   onFollowed: (id: string) => Promise<void>
@@ -17,15 +22,62 @@ interface Props {
   onAsk: (r: NewRequest) => Promise<void>
 }
 
-const GROUPS: { id: Group; title: string; empty: string }[] = [
-  { id: 'action', title: 'Нужно действие', empty: 'Сейчас ничего не требует твоего шага.' },
-  { id: 'wait', title: 'Ждём ответа', empty: 'Нет откликов в ожидании.' },
-  { id: 'todo', title: 'Не подано', empty: 'Всё найденное уже подано.' },
-  { id: 'closed', title: 'Закрыто', empty: '' },
-]
+const EMPTY: Record<FunnelTab, string> = {
+  sel: 'Пока никто не позвал дальше. Как только придёт приглашение, вакансия появится здесь.',
+  wait: 'Нет откликов в ожидании.',
+  todo: 'Всё найденное уже подано.',
+  closed: 'Закрытых вакансий нет.',
+}
 
-/** Подробности по нажатию: всё, что раньше висело в строке. */
-function Detail({ v, st, data, canWrite, onStatus, onSave, onFollowed, onAsk }: { v: Vacancy; st: StateView; data: PultData; canWrite: boolean } & Pick<Props, 'onStatus' | 'onSave' | 'onFollowed' | 'onAsk'>) {
+/** Четыре этапа вакансии сверху вниз: где ты сейчас и что было. */
+function Stepper({ v, st, data }: { v: Vacancy; st: StateView; data: PultData }) {
+  const t = today()
+  const stage = stageOf(v, data.messages)
+  const reply = messagesFor(data.messages, v.id).find(m => m.kind !== 'reject')
+  const closed = st.group === 'closed'
+  const nowText = v.next_step || st.hint
+  const steps = [
+    { label: 'Отклик', sub: v.applied_on ? fmtDate(v.applied_on) + (v.channel ? ' · ' + v.channel : '') : '' },
+    { label: 'Ответ работодателя', sub: reply ? fmtDate(reply.received_at.slice(0, 10)) + ' · ' + KINDS[reply.kind].label.toLowerCase() : '' },
+    { label: v.status === 'test' ? 'Тестовое' : 'Собеседование', sub: '' },
+    { label: 'Оффер', sub: '' },
+  ]
+  const waitText = stage === 1 && v.applied_on && !closed ? 'ждём ' + daysWord(Math.max(0, days(v.applied_on, t))) : ''
+  return (
+    <div className="box stepper">
+      {steps.map((s, i) => {
+        const cls = i < stage ? 'done' : i === stage ? 'cur' + (closed ? ' off' : '') : 'todo'
+        const label = i === stage && closed ? (v.status === 'reject' ? 'Отказ' : 'Не подходит') : s.label
+        const sub = i === stage ? [closed ? '' : waitText || 'сейчас', nowText].filter(Boolean).join(' · ') : i < stage ? s.sub : ''
+        return (
+          <div key={i} className={'step ' + cls}>
+            <div className="rail"><div className="dot">{i < stage && Icons.check}</div><div className="ln" /></div>
+            <div className="lbl"><b>{label}</b>{sub && <span>{sub}</span>}</div>
+          </div>)
+      })}
+    </div>
+  )
+}
+
+/** «К чему готовиться»: короткие темы тегами, длинный текст абзацем. */
+function Prep({ text }: { text: string | null }) {
+  if (!text) return null
+  const parts = text.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean)
+  const tags = parts.length > 1 && parts.every(p => p.length <= 40)
+  return (
+    <div className="sec">
+      <div className="sec-head"><h2>К чему готовиться</h2></div>
+      {tags ? <div className="tags">{parts.map((p, i) => <span key={i}>{p}</span>)}</div> : <p className="prep-text">{text}</p>}
+    </div>
+  )
+}
+
+/** Отдельный экран вакансии (дизайн v4). */
+function VacancyScreen({ v, data, canWrite, onBack, onStatus, onSave, onFollowed, onAsk }: { v: Vacancy; data: PultData; canWrite: boolean; onBack: () => void } & Pick<Props, 'onStatus' | 'onSave' | 'onFollowed' | 'onAsk'>) {
+  const t = today()
+  const st = vacancyState(v, data.messages, t)
+  const co = companyName(v)
+  const [stageOpen, setStageOpen] = useState(false)
   const [next, setNext] = useState(v.next_step ?? '')
   const [prep, setPrep] = useState(v.prep ?? '')
   const [notes, setNotes] = useState(v.notes ?? '')
@@ -36,88 +88,97 @@ function Detail({ v, st, data, canWrite, onStatus, onSave, onFollowed, onAsk }: 
     catch { setMsg('Не сохранилось') }
   }
   return (
-    <div className="vdetail">
-      <dl className="facts">
-        {v.work_format && <><dt>Формат</dt><dd>{v.work_format}</dd></>}
-        <dt>Подано</dt><dd>{v.applied_on ? fmtDate(v.applied_on) + ' через ' + (v.channel ?? '?') : 'ещё нет'}</dd>
-        {v.deadline && <><dt>Срок</dt><dd>до {fmtDate(v.deadline)}</dd></>}
-      </dl>
-      <label className="field">Статус
-        <PillSelect value={v.status} options={STATUSES} disabled={!canWrite} label="Статус" onChange={s => onStatus(v, s)} />
-      </label>
-      {ms.length > 0 && (
-        <div className="timeline">
-          {ms.map(m => <div key={m.id}><span className="mono">{fmtDate(m.received_at.slice(0, 10))}</span> <b>{KINDS[m.kind].label}.</b> {m.summary}</div>)}
-        </div>
-      )}
-      <label className="field">Что дальше<textarea value={next} readOnly={!canWrite} maxLength={500} onChange={e => setNext(e.target.value)} /></label>
-      <label className="field">К чему готовиться<textarea value={prep} readOnly={!canWrite} maxLength={2000} onChange={e => setPrep(e.target.value)} /></label>
-      <label className="field">Заметки<textarea value={notes} readOnly={!canWrite} maxLength={4000} onChange={e => setNotes(e.target.value)} /></label>
-      <div className="acts">
-        {canWrite && <button className="btn" onClick={save}>Сохранить</button>}
-        {canWrite && st.hint === 'Напомни о себе HR' && <button className="btn ghost" onClick={() => onFollowed(v.id)}>Я напомнил</button>}
-        {v.url && <a className="btn ghost" href={v.url} target="_blank" rel="noopener">Вакансия ↗</a>}
-        <span className="note">{msg}</span>
+    <section className="scr">
+      <button className="backlink" onClick={onBack}>{Icons.back}Воронка</button>
+      <div className="vhead4">
+        <div className="line"><h1>{co}</h1><span className={'spill ' + st.tone}>{st.label}</span></div>
+        <div className="rl">{v.title}{v.work_format ? ' · ' + v.work_format : ''}</div>
       </div>
-      <div className="field">Спросить Claude
-        <AskClaude vacancy={v} company={companyName(v)} canWrite={canWrite} onAsk={onAsk} />
-        <RequestList items={data.requests.filter(r => r.vacancy_id === v.id)} />
+      <Stepper v={v} st={st} data={data} />
+      <Prep text={v.prep} />
+      <AskBox v={v} company={co} canWrite={canWrite} onAsk={onAsk} />
+      <RequestList items={data.requests.filter(r => r.vacancy_id === v.id)} />
+      <div className="vbar">
+        {canWrite && <button className="btn" onClick={() => setStageOpen(!stageOpen)}>Сменить этап</button>}
+        {v.url && <a className="out" href={v.url} target="_blank" rel="noopener">Вакансия{Icons.external}</a>}
+        {stageOpen && <PillSelect value={v.status} options={STATUSES} label="Этап" onChange={s => { setStageOpen(false); onStatus(v, s) }} />}
+        {canWrite && st.hint === 'Напомни о себе HR' && <button className="btn ghost" onClick={() => onFollowed(v.id)}>Я напомнил HR</button>}
       </div>
-    </div>
+      <details className="more4">
+        <summary>Письма, заметки и правка</summary>
+        {ms.length > 0 && (
+          <div className="timeline">
+            {ms.map(m => <div key={m.id}><span className="mono">{fmtDate(m.received_at.slice(0, 10))}</span> <b>{KINDS[m.kind].label}.</b> {m.summary}</div>)}
+          </div>)}
+        {v.deadline && <p className="note">Срок: до {fmtDate(v.deadline)}</p>}
+        <label className="field">Что дальше<textarea value={next} readOnly={!canWrite} maxLength={500} onChange={e => setNext(e.target.value)} /></label>
+        <label className="field">К чему готовиться<textarea value={prep} readOnly={!canWrite} maxLength={2000} onChange={e => setPrep(e.target.value)} /></label>
+        <label className="field">Заметки<textarea value={notes} readOnly={!canWrite} maxLength={4000} onChange={e => setNotes(e.target.value)} /></label>
+        {canWrite && <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}><button className="btn" onClick={save}>Сохранить</button><span className="note">{msg}</span></div>}
+      </details>
+    </section>
   )
 }
 
-export function Funnel({ data, canWrite, onStatus, onSave, onFollowed, onAdd, onAsk }: Props) {
+export function Funnel(p: Props) {
+  const { data, canWrite, open, setOpen, onAdd } = p
   const t = today()
-  const [open, setOpen] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
-  const q = query.trim().toLowerCase()
-  const items = data.vacancies
-    .filter(v => !q || (companyName(v) + ' ' + v.title).toLowerCase().includes(q))
-    .map(v => ({ v, st: vacancyState(v, data.messages, t) }))
-    .sort((a, b) => String(b.v.applied_on ?? b.v.updated_at).localeCompare(String(a.v.applied_on ?? a.v.updated_at)))
-  const applied = data.vacancies.filter(v => v.applied_on).length
-  const replied = data.vacancies.filter(v => ['test', 'interview', 'offer', 'reject'].includes(v.status)).length
-  const talks = data.vacancies.filter(v => ['test', 'interview', 'offer'].includes(v.status)).length
-
-  const card = ({ v, st }: { v: Vacancy; st: StateView }) => (
-    <div key={v.id} className={'vcard' + (open === v.id ? ' open' : '')}>
-      <button className="vhead" aria-expanded={open === v.id} onClick={() => setOpen(open === v.id ? null : v.id)}>
-        <span className="vmain">
-          <span className="vco">{companyName(v)}</span>
-          <span className="vrole">{v.title}</span>
-        </span>
-        <span className={'state ' + st.tone}>{st.label}</span>
-        {st.hint && <span className="vhint">{st.hint}</span>}
-      </button>
-      {open === v.id && <Detail v={v} st={st} data={data} canWrite={canWrite} onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAsk={onAsk} />}
-    </div>
-  )
-
   const [form, setForm] = useState<NewVacancy>({ company: '', title: '', status: 'applied', work_format: '', applied_on: t, channel: '', url: '', deadline: '' })
   const [addMsg, setAddMsg] = useState('')
-  const f = (k: keyof NewVacancy) => (e: { target: { value: string } }) => setForm(p => ({ ...p, [k]: e.target.value }))
+
+  const openV = open ? data.vacancies.find(v => v.id === open) : null
+  if (openV) return <VacancyScreen key={openV.id} v={openV} data={data} canWrite={canWrite} onBack={() => setOpen(null)}
+    onStatus={p.onStatus} onSave={p.onSave} onFollowed={p.onFollowed} onAsk={p.onAsk} />
+
+  const all = data.vacancies.map(v => ({ v, st: vacancyState(v, data.messages, t), tab: funnelTab(v) }))
+  const count = (x: FunnelTab) => all.filter(a => a.tab === x).length
+  const sel = count('sel')
+  const waiting = data.vacancies.filter(v => v.status === 'applied').length
+  const reserve = data.vacancies.filter(v => v.status === 'reserve').length
+  const rejects = data.vacancies.filter(v => v.status === 'reject').length
+  const sent = data.vacancies.filter(v => v.applied_on).length
+  const tab: FunnelTab = p.tab ?? (sel ? 'sel' : 'wait')
+  const list = all.filter(a => a.tab === tab).sort((a, b) =>
+    Number(b.st.group === 'action') - Number(a.st.group === 'action') ||
+    String(b.v.applied_on ?? b.v.updated_at).localeCompare(String(a.v.applied_on ?? a.v.updated_at)))
+  const f = (k: keyof NewVacancy) => (e: { target: { value: string } }) => setForm(x => ({ ...x, [k]: e.target.value }))
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    try { await onAdd(form); setAddMsg('Добавлено: ' + form.company); setForm(p => ({ ...p, company: '', title: '', url: '' })) }
+    try { await onAdd(form); setAddMsg('Добавлено: ' + form.company); setForm(x => ({ ...x, company: '', title: '', url: '' })) }
     catch (err) { setAddMsg('Не сохранилось: ' + (err as Error).message) }
   }
+  const bar = [{ n: sel, c: 'c-sel' }, { n: waiting, c: 'c-wait' }, { n: reserve, c: 'c-res' }, { n: rejects, c: 'c-off' }].filter(x => x.n > 0)
 
   return (
-    <section className="panel">
-      <p className="summary">Подано <b>{applied}</b> · ответили <b>{replied}</b> · в отборе <b>{talks}</b></p>
-      <input className="search" type="search" placeholder="Найти компанию" aria-label="Поиск" value={query} onChange={e => setQuery(e.target.value)} />
-      {GROUPS.map(g => {
-        const list = items.filter(x => x.st.group === g.id)
-        if (g.id === 'closed') return list.length ? (
-          <details key={g.id} className="group closed-group"><summary>{g.title} <span className="count">{list.length}</span></summary><div className="cards">{list.map(card)}</div></details>
-        ) : null
-        return (
-          <div key={g.id} className="group">
-            <h2>{g.title} <span className="count">{list.length}</span></h2>
-            {list.length ? <div className="cards">{list.map(card)}</div> : <Empty>{g.empty}</Empty>}
-          </div>)
-      })}
+    <section className="scr">
+      <div>
+        <h1 className="screen">Воронка</h1>
+        <p className="screen-sub">{sent} откликов · {sel} в отборе · {rejects} отказов</p>
+      </div>
+      <div className="box stagebar">
+        <div className="bar4">{bar.map(x => <i key={x.c} className={x.c} style={{ flexGrow: x.n }} />)}</div>
+        <div className="legend">
+          <span><i className="c-sel" />отбор {sel}</span><span><i className="c-wait" />ждём {waiting}</span>
+          <span><i className="c-res" />резерв {reserve}</span><span><i className="c-off" />отказ {rejects}</span>
+        </div>
+      </div>
+      <div className="ftabs" aria-label="Группы вакансий">
+        {FUNNEL_TABS.map(x => <button key={x.id} className="chip" aria-pressed={tab === x.id} onClick={() => p.setTab(x.id)}>{x.label} {count(x.id)}</button>)}
+      </div>
+      <div className="vlist">
+        {list.length ? list.map(({ v, st }) => {
+          const n = stageOf(v, data.messages)
+          return (
+            <button key={v.id} className="vc" onClick={() => { setOpen(v.id); window.scrollTo({ top: 0 }) }}>
+              <span className="hd">
+                <span className="nm"><span className="co">{companyName(v)}</span><span className="rl">{v.title}</span></span>
+                <span className={'spill ' + st.tone}>{st.label}</span>
+              </span>
+              <span className="steps4">{[0, 1, 2, 3].map(i => <i key={i} className={i < n ? 'on' : ''} />)}</span>
+              <span className="hint">{st.hint || v.next_step || ''}</span>
+            </button>)
+        }) : <div className="rows"><Empty>{EMPTY[tab]}</Empty></div>}
+      </div>
       {canWrite && (
         <details className="add">
           <summary>Добавить вакансию</summary>
