@@ -148,10 +148,10 @@ export function funnelTab(v: Vacancy): FunnelTab {
   return 'closed'
 }
 
-/** Сколько из четырёх этапов пройдено: отклик, ответ, отбор, оффер. */
+/** Текущий этап из четырёх (0 отклик, 1 ответ, 2 отбор, 3 оффер); все до него пройдены. */
 export function stageOf(v: Vacancy, messages: Message[]): number {
-  if (v.status === 'offer') return 4
-  if (v.status === 'test' || v.status === 'interview') return 3
+  if (v.status === 'offer') return 3
+  if (v.status === 'test' || v.status === 'interview') return 2
   if (v.status === 'found' || (v.status === 'skip' && !v.applied_on)) return 0
   const replied = messages.some(m => m.vacancy_id === v.id && m.kind !== 'reject')
   return replied ? 2 : 1

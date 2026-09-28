@@ -4,6 +4,7 @@ import { companyName } from '../lib/domain'
 import type { Message, MessageKind, PultData } from '../lib/types'
 import { Empty } from './ui'
 import { Icons } from './icons'
+import { Swipe, Title } from './native'
 
 /** Что за письмо, человеческими словами, и насколько срочно. */
 const KIND_VIEW: Record<MessageKind, { label: string; tone: string }> = {
@@ -41,10 +42,7 @@ export function Inbox({ data, canWrite, onDone }: { data: PultData; canWrite: bo
 
   return (
     <section className="scr">
-      <div>
-        <h1 className="screen">Письма</h1>
-        <p className="screen-sub">Claude разбирает почту и оставляет здесь только суть</p>
-      </div>
+      <Title title="Письма" sub="Claude разбирает почту и оставляет здесь только суть" />
 
       <div className="sec">
         <div className="sec-head"><h2>Нужно сделать</h2><span>{todo.length}</span></div>
@@ -52,7 +50,8 @@ export function Inbox({ data, canWrite, onDone }: { data: PultData; canWrite: bo
           const k = KIND_VIEW[m.kind]
           const dl = m.deadline ? days(t, m.deadline) : null
           return (
-            <div key={m.id} className="mcard4">
+            <Swipe key={m.id} label="Сделано" disabled={!canWrite} onAction={() => onDone(m.id, true)}>
+            <div className="mcard4">
               <div className="hd"><span className="co">{companyName(m)}</span><span className={'spill ' + k.tone}>{k.label}</span></div>
               <div className="what">{m.action || m.summary}</div>
               {m.action && <div className="why">{m.summary}</div>}
@@ -61,7 +60,8 @@ export function Inbox({ data, canWrite, onDone }: { data: PultData; canWrite: bo
                 {dl !== null && <span className="due">{dl < 0 ? 'просрочено' : 'срок ' + leftLabel(dl)}</span>}
                 <span>пришло {fmtDate(m.received_at.slice(0, 10))}</span>
               </div>
-            </div>)
+            </div>
+            </Swipe>)
         }) : <div className="rows"><Empty>Всё разобрано, действий не нужно.</Empty></div>}
       </div>
 

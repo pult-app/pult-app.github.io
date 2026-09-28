@@ -135,13 +135,13 @@ describe('дизайн v4: вкладки и этапы воронки', () => {
     expect(funnelTab(vacancy({ status: 'found' }))).toBe('todo')
     expect(funnelTab(vacancy({ status: 'skip' }))).toBe('closed')
   })
-  it('этап: отклик без ответа 1, с ответом 2, собес 3, оффер 4', () => {
+  it('текущий этап: ждём ответа 1, ответили 2, собес 2, оффер 3', () => {
     const v = vacancy({ id: 'v1', status: 'applied', applied_on: '2026-09-27' })
     expect(stageOf(v, [])).toBe(1)
     expect(stageOf(v, [{ vacancy_id: 'v1', kind: 'ack' } as never])).toBe(2)
     expect(stageOf(v, [{ vacancy_id: 'v1', kind: 'reject' } as never])).toBe(1)
-    expect(stageOf(vacancy({ status: 'interview' }), [])).toBe(3)
-    expect(stageOf(vacancy({ status: 'offer' }), [])).toBe(4)
+    expect(stageOf(vacancy({ status: 'interview' }), [])).toBe(2)
+    expect(stageOf(vacancy({ status: 'offer' }), [])).toBe(3)
     expect(stageOf(vacancy({ status: 'found' }), [])).toBe(0)
   })
   it('следующий шаг: оффер важнее собеседования, без дел пусто', () => {

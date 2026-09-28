@@ -6,6 +6,7 @@ import type { PultData, TaskKind } from '../lib/types'
 import { Empty } from './ui'
 import { AskLine, prepPrompt, RequestList, type NewRequest } from './AskClaude'
 import { Icons } from './icons'
+import { Swipe, Title } from './native'
 import type { Go } from '../App'
 
 interface Props {
@@ -30,7 +31,7 @@ function NextStepCard({ data, canWrite, goto, onAsk }: Pick<Props, 'data' | 'can
     const waiting = data.vacancies.filter(v => funnelTab(v) === 'wait').length
     return (
       <div className="hero-card">
-        <div className="kicker">СЛЕДУЮЩИЙ ШАГ</div>
+        <div className="kicker"><i className="calm" />СЛЕДУЮЩИЙ ШАГ</div>
         <div className="title">По поиску работы ничего не горит</div>
         <div className="text">Ждём ответов по {waiting} откликам. Новые письма Claude разберёт сам.</div>
         <div className="acts"><button className="hbtn ghost" onClick={() => goto('funnel')}>Открыть воронку</button></div>
@@ -45,7 +46,7 @@ function NextStepCard({ data, canWrite, goto, onAsk }: Pick<Props, 'data' | 'can
   }
   return (
     <div className="hero-card">
-      <div className="kicker">СЛЕДУЮЩИЙ ШАГ</div>
+      <div className="kicker"><i />СЛЕДУЮЩИЙ ШАГ</div>
       <div className="title">{co}: {st.label.charAt(0).toLowerCase() + st.label.slice(1)}</div>
       <div className="text">{v.next_step || st.hint}</div>
       <div className="acts">
@@ -88,14 +89,17 @@ function TodayList({ data, canWrite, goto, onTaskDone }: Pick<Props, 'data' | 'c
   soon.forEach((x: AgendaItem, i) => {
     const n = days(t, x.date)
     const tm = n === 0 && x.time ? x.time : n < 0 ? 'срок' : n === 0 ? 'день' : n === 1 ? 'завтра' : fmtDate(x.date)
-    rows.push(
-      <div key={'a' + i} className="trow">
+    const row = (
+      <div className="trow">
         <div className={'tm' + (n < 0 ? ' hot' : n <= 1 ? ' warn' : '')}>{tm}</div>
         <div className="tx"><b>{x.title}</b><span>{n < 0 ? 'просрочено' : leftLabel(n)} · {TASK_KINDS[x.kind]}</span></div>
         {x.taskId && canWrite
           ? <input type="checkbox" className="chk" aria-label="Сделано" onChange={e => onTaskDone(x.taskId!, e.target.checked)} />
           : x.goto ? <button className="go" onClick={() => goto(x.goto!)}>Открыть</button> : null}
       </div>)
+    rows.push(x.taskId && canWrite
+      ? <Swipe key={'a' + i} label="Готово" onAction={() => onTaskDone(x.taskId!, true)}>{row}</Swipe>
+      : <div key={'a' + i} style={{ display: 'contents' }}>{row}</div>)
   })
   const due = data.cards.filter(c => c.due_on <= t).length
   if (due) rows.push(
@@ -136,13 +140,7 @@ export function Today({ data, canWrite, goto, status, actions, onTaskDone, onAdd
 
   return (
     <section className="scr">
-      <div className="top">
-        <div>
-          <div className="date">{dateLine.charAt(0).toUpperCase() + dateLine.slice(1)}</div>
-          <h1>{greetWord(h)}, Герман</h1>
-        </div>
-        <div className="top-actions">{actions}</div>
-      </div>
+      <Title kicker={dateLine.charAt(0).toUpperCase() + dateLine.slice(1)} title={greetWord(h) + ', Герман'} compact="Сегодня" actions={actions} />
       <div className="pills">
         {wk && <span className="pchip">{wk.num}-я неделя · {wk.numerator ? 'числитель' : 'знаменатель'}</span>}
         <span className={'pchip ' + status.cls}>{status.text}</span>

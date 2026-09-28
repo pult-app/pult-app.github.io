@@ -5,6 +5,8 @@ import type { PultData, Vacancy, VacancyStatus } from '../lib/types'
 import { Empty, PillSelect } from './ui'
 import { AskBox, RequestList, type NewRequest } from './AskClaude'
 import { Icons } from './icons'
+import { Title } from './native'
+import { toast, transition } from '../lib/ux'
 
 export interface NewVacancy { company: string; title: string; status: VacancyStatus; work_format: string; applied_on: string; channel: string; url: string; deadline: string }
 
@@ -84,16 +86,13 @@ function VacancyScreen({ v, data, canWrite, onBack, onStatus, onSave, onFollowed
   const [msg, setMsg] = useState('')
   const ms = messagesFor(data.messages, v.id)
   const save = async () => {
-    try { await onSave(v.id, { next_step: next.trim() || null, prep: prep.trim() || null, notes: notes.trim() || null }); setMsg('Сохранено') }
+    try { await onSave(v.id, { next_step: next.trim() || null, prep: prep.trim() || null, notes: notes.trim() || null }); setMsg(''); toast('Сохранено') }
     catch { setMsg('Не сохранилось') }
   }
   return (
     <section className="scr">
-      <button className="backlink" onClick={onBack}>{Icons.back}Воронка</button>
-      <div className="vhead4">
-        <div className="line"><h1>{co}</h1><span className={'spill ' + st.tone}>{st.label}</span></div>
-        <div className="rl">{v.title}{v.work_format ? ' · ' + v.work_format : ''}</div>
-      </div>
+      <Title title={co} back={{ label: 'Воронка', onClick: onBack }}
+        sub={<div className="vhead4"><div className="rl">{v.title}{v.work_format ? ' · ' + v.work_format : ''}</div><span className={'spill ' + st.tone} style={{ justifySelf: 'start', marginTop: 8, display: 'inline-block' }}>{st.label}</span></div>} />
       <Stepper v={v} st={st} data={data} />
       <Prep text={v.prep} />
       <AskBox v={v} company={co} canWrite={canWrite} onAsk={onAsk} />
@@ -101,7 +100,7 @@ function VacancyScreen({ v, data, canWrite, onBack, onStatus, onSave, onFollowed
       <div className="vbar">
         {canWrite && <button className="btn" onClick={() => setStageOpen(!stageOpen)}>Сменить этап</button>}
         {v.url && <a className="out" href={v.url} target="_blank" rel="noopener">Вакансия{Icons.external}</a>}
-        {stageOpen && <PillSelect value={v.status} options={STATUSES} label="Этап" onChange={s => { setStageOpen(false); onStatus(v, s) }} />}
+        {stageOpen && <PillSelect value={v.status} options={STATUSES} label="Этап" onChange={s => { setStageOpen(false); onStatus(v, s).then(() => toast('Этап: ' + STATUSES.find(x => x.id === s)!.label.toLowerCase())) }} />}
         {canWrite && st.hint === 'Напомни о себе HR' && <button className="btn ghost" onClick={() => onFollowed(v.id)}>Я напомнил HR</button>}
       </div>
       <details className="more4">
@@ -127,7 +126,7 @@ export function Funnel(p: Props) {
   const [addMsg, setAddMsg] = useState('')
 
   const openV = open ? data.vacancies.find(v => v.id === open) : null
-  if (openV) return <VacancyScreen key={openV.id} v={openV} data={data} canWrite={canWrite} onBack={() => setOpen(null)}
+  if (openV) return <VacancyScreen key={openV.id} v={openV} data={data} canWrite={canWrite} onBack={() => transition(() => setOpen(null), 'back')}
     onStatus={p.onStatus} onSave={p.onSave} onFollowed={p.onFollowed} onAsk={p.onAsk} />
 
   const all = data.vacancies.map(v => ({ v, st: vacancyState(v, data.messages, t), tab: funnelTab(v) }))
@@ -151,30 +150,27 @@ export function Funnel(p: Props) {
 
   return (
     <section className="scr">
-      <div>
-        <h1 className="screen">Воронка</h1>
-        <p className="screen-sub">{sent} откликов · {sel} в отборе · {rejects} отказов</p>
-      </div>
+      <Title title="Воронка" sub={<>{sent} откликов · {sel} в отборе · {rejects} отказов</>} />
       <div className="box stagebar">
         <div className="bar4">{bar.map(x => <i key={x.c} className={x.c} style={{ flexGrow: x.n }} />)}</div>
         <div className="legend">
-          <span><i className="c-sel" />отбор {sel}</span><span><i className="c-wait" />ждём {waiting}</span>
-          <span><i className="c-res" />резерв {reserve}</span><span><i className="c-off" />отказ {rejects}</span>
+          <span><i className="c-sel" />отбор <b>{sel}</b></span><span><i className="c-wait" />ждём <b>{waiting}</b></span>
+          <span><i className="c-res" />резерв <b>{reserve}</b></span><span><i className="c-off" />отказ <b>{rejects}</b></span>
         </div>
       </div>
       <div className="ftabs" aria-label="Группы вакансий">
-        {FUNNEL_TABS.map(x => <button key={x.id} className="chip" aria-pressed={tab === x.id} onClick={() => p.setTab(x.id)}>{x.label} {count(x.id)}</button>)}
+        {FUNNEL_TABS.map(x => <button key={x.id} className="chip" aria-pressed={tab === x.id} onClick={() => transition(() => p.setTab(x.id))}>{x.label}<b>{count(x.id)}</b></button>)}
       </div>
       <div className="vlist">
         {list.length ? list.map(({ v, st }) => {
           const n = stageOf(v, data.messages)
           return (
-            <button key={v.id} className="vc" onClick={() => { setOpen(v.id); window.scrollTo({ top: 0 }) }}>
+            <button key={v.id} className="vc" onClick={() => transition(() => { setOpen(v.id); window.scrollTo({ top: 0 }) }, 'fwd')}>
               <span className="hd">
                 <span className="nm"><span className="co">{companyName(v)}</span><span className="rl">{v.title}</span></span>
                 <span className={'spill ' + st.tone}>{st.label}</span>
               </span>
-              <span className="steps4">{[0, 1, 2, 3].map(i => <i key={i} className={i < n ? 'on' : ''} />)}</span>
+              <span className="steps4" aria-label={'Этап ' + (n + 1) + ' из 4'}>{[0, 1, 2, 3].map(i => <i key={i} className={i < n ? 'on' : i === n && st.group !== 'closed' ? 'cur' : ''} />)}</span>
               <span className="hint">{st.hint || v.next_step || ''}</span>
             </button>)
         }) : <div className="rows"><Empty>{EMPTY[tab]}</Empty></div>}

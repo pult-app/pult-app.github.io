@@ -14,6 +14,8 @@ import { PushToggle } from './components/PushToggle'
 import { ThemeToggle } from './components/ThemeToggle'
 import { Icons } from './components/icons'
 import { CalendarLink } from './components/CalendarLink'
+import { Skeleton, TabBar, Title, Toaster, usePullToRefresh } from './components/native'
+import { toast, transition } from './lib/ux'
 import type { NewRequest } from './components/AskClaude'
 
 export type Tab = 'today' | 'funnel' | 'inbox' | 'study' | 'more'
@@ -121,7 +123,7 @@ export default function App() {
   const go: Go = (t, o = {}) => {
     if (t === 'funnel') { setOpenVacancy(o.vacancy ?? null); if (o.ftab) setFtab(o.ftab) }
     if (t === 'study') setCards(!!o.cards)
-    setTab(t)
+    transition(() => setTab(t))
   }
 
   // Переход по #вкладке в адресе (из пуша или закладки) переключает экран без перезагрузки.
@@ -142,6 +144,7 @@ export default function App() {
     try { setData(await loadAll()); setOffline(false); setError('') }
     catch (e) { setError((e as Error).message) }
   }, [])
+  const ptr = usePullToRefresh(refresh)
 
   useEffect(() => {
     if (DEMO) { fetch(import.meta.env.BASE_URL + 'demo.json').then(r => r.json()).then(setData); return }
@@ -216,15 +219,15 @@ export default function App() {
     <div className="wrap">
       {error && <div className="banner" role="alert">Ошибка: {error} <button className="linkbtn" onClick={() => setError('')}>скрыть</button></div>}
 
-      {!data ? <div className="empty">Загружаю…</div> : <>
+      {!data ? <Skeleton /> : <>
         {tab === 'today' && <Today data={data} canWrite={canWrite} goto={go} status={status} actions={topActions}
-          onTaskDone={(id, done) => act(() => update('task', id, { is_done: done }))}
+          onTaskDone={(id, done) => act(() => update('task', id, { is_done: done })).then(() => { if (done) toast({ text: 'Дело закрыто', action: { label: 'Вернуть', run: () => { act(() => update('task', id, { is_done: false })) } } }) })}
           onAddTask={row => act(() => insert('task', { ...row, created_by: 'owner' }))} onAsk={onAsk} />}
         {tab === 'funnel' && <Funnel data={data} canWrite={canWrite} open={openVacancy} setOpen={setOpenVacancy} tab={ftab} setTab={setFtab}
           onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAdd={onAddVacancy} onAsk={onAsk} />}
-        {tab === 'inbox' && <Inbox data={data} canWrite={canWrite} onDone={(id, done) => act(() => update('message', id, { is_done: done }))} />}
+        {tab === 'inbox' && <Inbox data={data} canWrite={canWrite} onDone={(id, done) => act(() => update('message', id, { is_done: done })).then(() => { if (done) toast({ text: 'Письмо разобрано', action: { label: 'Вернуть', run: () => { act(() => update('message', id, { is_done: false })) } } }) })} />}
         {tab === 'study' && <section className="scr">
-          <h1 className="screen">Учёба</h1>
+          <Title title="Учёба" />
           <div className="seg">
             <button className="chip" aria-pressed={!cards} onClick={() => setCards(false)}>Работы</button>
             <button className="chip" aria-pressed={cards} onClick={() => setCards(true)}>Карточки{dueCards ? ' ' + dueCards : ''}</button>
@@ -237,10 +240,7 @@ export default function App() {
             })} />}
         </section>}
         {tab === 'more' && <section className="scr">
-          <div>
-            <h1 className="screen">Ещё</h1>
-            <p className="screen-sub">{status.text}</p>
-          </div>
+          <Title title="Ещё" sub={status.text} />
           <Stats data={data} />
           <CalendarLink />
           <PasswordBox />
@@ -250,16 +250,10 @@ export default function App() {
         </section>}
       </>}
 
-      <nav className="bnav" role="tablist" aria-label="Разделы">
-        {TABS.map(x => {
-          const b = badges[x.id]
-          return (
-            <button key={x.id} role="tab" aria-selected={tab === x.id} onClick={() => go(x.id)}>
-              {Icons[x.id]}<span>{x.label}</span>
-              {b && b.n > 0 && <span className={'dot' + (b.hot ? ' hot' : '')}>{b.n}</span>}
-            </button>)
-        })}
-      </nav>
+      <TabBar items={TABS.map(x => ({ ...x, icon: Icons[x.id] }))} value={tab} onPick={t => go(t)}
+        badges={Object.fromEntries(Object.entries(badges).map(([k, b]) => [k, b?.n ?? 0]))} />
+      <Toaster />
+      {ptr.pull > 0 && <div className={'ptr' + (ptr.busy ? ' busy' : '')} style={{ transform: `translateY(${ptr.pull - 30}px) rotate(${ptr.pull * 4}deg)`, opacity: Math.min(1, ptr.pull / 50) }}><i /></div>}
 
     </div>
   )
