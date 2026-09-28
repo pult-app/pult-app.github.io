@@ -108,6 +108,29 @@ async function digest(): Promise<Response> {
   return json(200, { digest: parts })
 }
 
+/** Итоги недели по воскресеньям в 19:00: подано, ответы, отказы, отбор. */
+async function weekly(): Promise<Response> {
+  const users = await db.auth.admin.listUsers({ perPage: 2 })
+  const owner = users.data?.users[0]?.id
+  if (!owner) return json(200, { skipped: 'нет пользователя' })
+  const t = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' })
+  const since = new Date(Date.parse(t + 'T12:00:00Z') - 7 * 864e5).toISOString().slice(0, 10)
+  const [applied, msgs, sel] = await Promise.all([
+    db.from('vacancy').select('id', { count: 'exact', head: true }).eq('owner_id', owner).gte('applied_on', since),
+    db.from('message').select('kind').eq('owner_id', owner).gte('received_at', since),
+    db.from('vacancy').select('id', { count: 'exact', head: true }).eq('owner_id', owner).in('status', ['test', 'interview', 'offer']),
+  ])
+  const kinds = (msgs.data ?? []).map(m => m.kind as string)
+  const live = kinds.filter(k => ['invite', 'test', 'question', 'offer'].includes(k)).length
+  const rejects = kinds.filter(k => k === 'reject').length
+  const a = applied.count ?? 0
+  const parts = [`Подано: ${a}`, `живых ответов: ${live}`, `отказов: ${rejects}`, `в отборе: ${sel.count ?? 0}`]
+  if (a) parts.push(`ответили на ${Math.round((live + rejects) / a * 100)}% откликов`)
+  const body = parts.join(', ') + '. ' + (a < 10 ? 'На неделе стоит подать больше.' : 'Держим темп.')
+  await db.from('notification').insert({ owner_id: owner, title: 'Итоги недели', body: body.slice(0, 300) })
+  return json(200, { weekly: body, since })
+}
+
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
   const path = new URL(req.url).pathname.replace(/^.*?\/notify/, '')
@@ -115,6 +138,7 @@ Deno.serve(async req => {
     if (req.method === 'GET' && path === '/public-key') return json(200, { publicKey: (await vapid()).publicKey })
     if (req.method === 'POST' && path === '/send') return await send()
     if (req.method === 'POST' && path === '/digest') return await digest()
+    if (req.method === 'POST' && path === '/weekly') return await weekly()
     return json(404, { error: 'маршрут не найден' })
   } catch (e) {
     console.error(e)

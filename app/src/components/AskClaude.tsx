@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { fmtDate } from '../lib/dates'
 import type { AgentRequest, Vacancy } from '../lib/types'
 import { Icons } from './icons'
+import { toast } from '../lib/ux'
 
 export type NewRequest = { kind: AgentRequest['kind']; prompt: string; vacancy_id: string | null }
 
@@ -34,8 +35,11 @@ export function RequestList({ items }: { items: AgentRequest[] }) {
             <span className={'spill ' + STATUS[r.status].tone}>{STATUS[r.status].label}</span>
           </div>
           {r.status === 'done' && r.result && (open === r.id
-            ? <div className="answer">{r.result}</div>
-            : <button className="linkbtn" onClick={() => setOpen(r.id)}>Открыть ответ</button>)}
+            ? <>
+                <div className="answer">{r.result}</div>
+                <button className="btn ghost small" onClick={() => navigator.clipboard?.writeText(r.result!).then(() => toast(r.kind === 'followup' ? 'Черновик скопирован, вставь его в чат hh' : 'Ответ скопирован'))}>Скопировать</button>
+              </>
+            : <button className="linkbtn" onClick={() => setOpen(r.id)}>{r.kind === 'followup' ? 'Открыть черновик напоминания' : 'Открыть ответ'}</button>)}
           {r.status === 'failed' && r.error && <div className="msum">{r.error}</div>}
           <div className="mfoot"><span className="mono">{fmtDate(new Date(r.created_at).toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' }))}</span>{r.status === 'queued' && <span>ответ придёт пушем</span>}</div>
         </div>))}

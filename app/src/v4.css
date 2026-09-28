@@ -355,3 +355,17 @@ html[data-dir="back"]::view-transition-new(root){animation:vt-in-l .32s var(--ea
 .step.cur .lbl span{color:var(--accent-text)}
 .trow .now{background:var(--ink); color:var(--ground)}
 .tb-badge{background:var(--accent); color:#141416}
+
+/* Подготовка к собесу и поиск (v1.2) */
+.prepbox{display:grid; gap:8px; padding:16px; border-radius:var(--radius); background:var(--panel); color:var(--panel-ink)}
+.prepbox .hd{display:flex; align-items:center; gap:8px; color:var(--signal)}
+.prepbox .hd svg{width:18px; height:18px}
+.prepbox .hd h2{margin:0; font-size:16px; font-weight:600; color:var(--panel-ink)}
+.prepbox .prep-when{font-family:var(--f-display); font-size:20px; font-weight:500; line-height:1.25}
+.prepbox .line{font-size:14px; color:var(--panel-muted)}
+.prepbox .btn{justify-self:start; background:var(--signal); color:#141416; margin-top:4px}
+.search4{min-height:46px}
+.search4 svg{width:18px; height:18px; color:var(--muted); flex-shrink:0}
+.search4 input{-webkit-appearance:none; appearance:none}
+.field input[type=date]{text-transform:none; letter-spacing:0; font-weight:400; font-size:16px; color:var(--ink); background:var(--sunk); border:0; border-radius:12px; padding:10px 12px; min-height:44px}
+.prepbox{border:1px solid var(--line)}
