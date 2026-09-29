@@ -129,6 +129,15 @@ export default function App() {
     window.scrollTo(0, pendingScroll.current)
     pendingScroll.current = null
   }, [tab])
+  // Первое появление данных: карточки проявляются лесенкой один раз за запуск (класс снимается после анимации).
+  const painted = useRef(false)
+  useEffect(() => {
+    if (!data || painted.current) return
+    painted.current = true
+    const r = document.documentElement
+    r.classList.add('first-paint')
+    window.setTimeout(() => r.classList.remove('first-paint'), 800)
+  }, [data])
   const go: Go = (t, o = {}) => {
     if (t === 'funnel') { setOpenVacancy(o.vacancy ?? null); if (o.ftab) setFtab(o.ftab) }
     if (t === 'study') setCards(!!o.cards)

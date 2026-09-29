@@ -501,3 +501,69 @@ html.theme-fade, html.theme-fade *{transition:background-color .3s ease, color .
 .tabbar button span,.spill,.tile span,.pchip{letter-spacing:.01em}
 .tile b,.ins-readout b{letter-spacing:-.02em}
 .step.cur.off .lbl span{color:var(--muted)}
+
+/* ---------- Визуал v1.5 (29.09): отзывчивый таб-бар, свечения, наведение ---------- */
+:root{ --glow:.55 }
+:root[data-theme="light"]{ --glow:.35 }
+
+/* Таб-бар: касание сразу переключает, линза едет и слегка тянется, иконка подпрыгивает */
+.tabbar{touch-action:none; -webkit-user-select:none; user-select:none}
+.tabbar .lens{background:none; transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.tabbar .lens i{position:absolute; inset:0; border-radius:inherit;
+  background:color-mix(in srgb,var(--accent) 16%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 28%,transparent), 0 0 18px -2px color-mix(in srgb,var(--accent) calc(var(--glow) * 60%),transparent)}
+.tabbar button[aria-current="page"] svg{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--accent) calc(var(--glow) * 90%),transparent))}
+.tb-badge{box-shadow:0 0 0 2px var(--surface), 0 0 10px color-mix(in srgb,var(--accent) calc(var(--glow) * 80%),transparent)}
+@media (prefers-reduced-motion:no-preference){
+  .tabbar .lens i{animation:lens-stretch .34s cubic-bezier(.2,.8,.2,1)}
+  @keyframes lens-stretch{35%{transform:scaleX(1.14) scaleY(.92)}}
+  .tabbar button[aria-current="page"] svg{animation:tab-pop .38s cubic-bezier(.2,.8,.2,1)}
+  @keyframes tab-pop{40%{transform:translateY(-2px) scale(1.14)}}
+  .tabbar button:active{transform:none}
+}
+
+/* Свечения: главная панель, подготовка, цифры недели - тонкий световой кант и мягкий ореол сигнального цвета */
+.hero-card,.prepbox,.ins-hero{
+  border:1px solid transparent;
+  background:linear-gradient(180deg,var(--panel-2),var(--panel)) padding-box,
+    linear-gradient(135deg, color-mix(in srgb,var(--signal) 70%,transparent), transparent 38%, transparent 70%, color-mix(in srgb,var(--signal) 25%,transparent)) border-box;
+  box-shadow:0 14px 40px -18px color-mix(in srgb,var(--signal) calc(var(--glow) * 70%),transparent), 0 1px 0 rgba(255,255,255,.06) inset}
+.prepbox{border:1px solid transparent}
+
+/* Главные кнопки светятся сигналом, при нажатии свет гаснет, как у физической кнопки */
+.hbtn:not(.ghost),.btn:not(.ghost):not(.small),.askline button,.prepbox .btn{
+  box-shadow:0 8px 22px -8px color-mix(in srgb,var(--accent) calc(var(--glow) * 110%),transparent)}
+.hbtn:not(.ghost):active,.btn:not(.ghost):active,.askline button:active{box-shadow:0 2px 8px -4px color-mix(in srgb,var(--accent) calc(var(--glow) * 80%),transparent)}
+
+/* Фокус с клавиатуры: чёткое кольцо со свечением */
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 22%,transparent)}
+
+/* Плитки и карточки в отборе: цветной кант по состоянию */
+.tile.win{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--win-mid) 35%,transparent)}
+.tile.act{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--act-line) 45%,transparent), 0 6px 18px -10px color-mix(in srgb,var(--accent) calc(var(--glow) * 80%),transparent)}
+.spill.win{box-shadow:0 0 12px -4px color-mix(in srgb,var(--win-mid) calc(var(--glow) * 80%),transparent)}
+.spill.action,.spill.todo{box-shadow:0 0 12px -4px color-mix(in srgb,var(--accent) calc(var(--glow) * 80%),transparent)}
+.askline:focus-within{box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent), 0 0 24px -6px color-mix(in srgb,var(--accent) calc(var(--glow) * 90%),transparent)}
+.bar-col.on i{box-shadow:0 0 14px -2px color-mix(in srgb,var(--accent) calc(var(--glow) * 90%),transparent)}
+
+/* Наведение мышью (только там, где оно есть): карточки чуть приподнимаются, кант подсвечивается */
+@media (hover:hover) and (pointer:fine){
+  .vc,.mcard4,.ins-card,.rows,.tile,details.add,details.more4{transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s, background-color .2s}
+  .vc:hover,.mcard4:hover,.tile:hover{transform:translateY(-2px); box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 30%,transparent), 0 12px 30px -16px color-mix(in srgb,var(--accent) calc(var(--glow) * 70%),transparent)}
+  .ins-card:hover,details.add:hover,details.more4:hover{box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 18%,transparent)}
+  .trow:hover,.frow:hover{background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+  .chip:hover,.icon-btn:hover,.askgrid button:hover{background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+  .tabbar button:hover:not([aria-current]){color:var(--ink)}
+  .hbtn:hover,.btn:hover{filter:brightness(1.06)}
+  .bar-col:hover i{background:color-mix(in srgb,var(--accent) 75%,var(--sunk))}
+}
+
+/* Первое появление экрана: карточки проявляются лесенкой (один раз при загрузке, без повторов на вкладках) */
+@media (prefers-reduced-motion:no-preference){
+  html.first-paint .scr > *{animation:rise .42s cubic-bezier(.2,.8,.2,1) both}
+  html.first-paint .scr > :nth-child(2){animation-delay:40ms}
+  html.first-paint .scr > :nth-child(3){animation-delay:80ms}
+  html.first-paint .scr > :nth-child(4){animation-delay:120ms}
+  html.first-paint .scr > :nth-child(n+5){animation-delay:160ms}
+  @keyframes rise{from{opacity:0; transform:translate3d(0,10px,0)}}
+}

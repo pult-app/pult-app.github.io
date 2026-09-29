@@ -33,18 +33,51 @@ export function Title({ title, compact, kicker, sub, actions, back }: {
   )
 }
 
-/** Плавающий стеклянный таб-бар с «линзой» под активной вкладкой (iOS 26). */
+/** Плавающий стеклянный таб-бар с «линзой» (iOS 26, отклик как в Telegram):
+ *  вкладка переключается в момент касания, а не на отпускание; линзу можно вести пальцем вдоль панели;
+ *  тап по уже активной вкладке срабатывает на отпускание (подъём наверх или назад к списку). */
 export function TabBar<T extends string>({ items, value, onPick, badges }: {
   items: { id: T; label: string; icon: ReactNode }[]; value: T; onPick: (t: T) => void; badges: Partial<Record<T, number>>
 }) {
   const i = Math.max(0, items.findIndex(x => x.id === value))
+  const cur = useRef(value)
+  cur.current = value
+  const g = useRef<{ start: number; switched: boolean; moved: boolean } | null>(null)
+  const idxAt = (el: HTMLElement, x: number) => {
+    const r = el.getBoundingClientRect()
+    return Math.max(0, Math.min(items.length - 1, Math.floor((x - r.left - 6) / ((r.width - 12) / items.length))))
+  }
+  const go = (k: number) => { const id = items[k].id; if (id !== cur.current) { haptic(8); cur.current = id; onPick(id) } }
   return (
-    <nav className="tabbar" aria-label="Разделы">
-      <span className="lens" style={{ transform: `translateX(${i * 100}%)`, width: `calc((100% - 12px) / ${items.length})` }} aria-hidden />
+    <nav className="tabbar" aria-label="Разделы"
+      onPointerDown={e => {
+        if (e.button !== 0) return
+        const k = idxAt(e.currentTarget, e.clientX)
+        e.currentTarget.setPointerCapture(e.pointerId)
+        const switched = items[k].id !== cur.current
+        g.current = { start: k, switched, moved: false }
+        if (switched) go(k)
+      }}
+      onPointerMove={e => {
+        const st = g.current
+        if (!st) return
+        const k = idxAt(e.currentTarget, e.clientX)
+        if (items[k].id !== cur.current) { st.moved = true; go(k) }
+      }}
+      onPointerUp={e => {
+        const st = g.current
+        g.current = null
+        if (st && !st.switched && !st.moved && idxAt(e.currentTarget, e.clientX) === st.start) onPick(cur.current)
+      }}
+      onPointerCancel={() => { g.current = null }}>
+      <span className="lens" style={{ transform: `translate3d(${i * 100}%,0,0)`, width: `calc((100% - 12px) / ${items.length})` }} aria-hidden>
+        <i key={value} />
+      </span>
       {items.map(x => {
         const n = badges[x.id] ?? 0
         return (
-          <button key={x.id} aria-current={value === x.id ? 'page' : undefined} onClick={() => { if (value !== x.id) haptic(); onPick(x.id) }}>
+          // Клавиатура и экранный диктор нажимают кнопку обычным click (detail 0); пальцем управляет панель выше.
+          <button key={x.id} aria-current={value === x.id ? 'page' : undefined} onClick={e => { if (e.detail === 0) onPick(x.id) }}>
             {x.icon}<span>{x.label}</span>
             {n > 0 && <b className="tb-badge">{n}</b>}
           </button>)
