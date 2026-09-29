@@ -15,6 +15,21 @@ export function channelOf(v: Vacancy): string {
   return 'Сайты компаний'
 }
 
+export const HEAT_WEEKS = 18
+
+/** Сетка календаря активности: столбец = неделя с понедельника, последняя неделя включает сегодня. */
+export function heat(count: (day: string) => number, t: string, weeks = HEAT_WEEKS) {
+  const dow = (new Date(t + 'T12:00:00Z').getUTCDay() + 6) % 7
+  const start = addDays(t, -dow - 7 * (weeks - 1))
+  return Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, d) => {
+    const day = addDays(start, w * 7 + d)
+    return { day, n: day > t ? 0 : count(day), future: day > t }
+  }))
+}
+
+/** Пять ступеней насыщенности, как у GitHub: 0, 1, 2-3, 4-6, 7+. */
+export const heatLevel = (n: number) => n === 0 ? 0 : n === 1 ? 1 : n <= 3 ? 2 : n <= 6 ? 3 : 4
+
 export type Outcome = 'live' | 'reject' | 'ack' | 'silent'
 
 /** Один итог на отклик: отказ важнее живого ответа, живой ответ важнее автоответа. */
@@ -61,5 +76,5 @@ export function insights(d: Pick<PultData, 'vacancies' | 'messages'>, t: string)
   }).filter((x): x is NonNullable<typeof x> => x !== null).sort((a, b) => a.d - b.d)
   const median = speed.length ? speed[Math.floor((speed.length - 1) / 2)].d : null
 
-  return { total: applied.length, perDay, week, prevWeek, streak, outcomes, replied, selected, offers, channels, speed, median }
+  return { total: applied.length, perDay, heat: heat(onDay, t), week, prevWeek, streak, outcomes, replied, selected, offers, channels, speed, median }
 }

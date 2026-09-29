@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { insights, outcomeOf } from './insights'
+import { heat, heatLevel, insights, outcomeOf } from './insights'
 import type { Message, Vacancy } from './types'
 
 const v = (id: string, applied_on: string | null, status: Vacancy['status'] = 'applied', channel = 'hh.ru'): Vacancy => ({
@@ -34,5 +34,14 @@ describe('страница «Ещё»: цифры', () => {
     expect(r.total).toBe(3)
     expect(r.median).toBe(4)
     expect(r.replied).toBe(3)
+  })
+  it('календарь: недели с понедельника, сегодня в последнем столбце, дни после сегодня пустые', () => {
+    const g = heat(d => d === '2026-09-28' ? 5 : 0, t, 3)
+    expect(g).toHaveLength(3)
+    expect(g[0][0].day).toBe('2026-09-14')
+    expect(g[2][0]).toEqual({ day: '2026-09-28', n: 5, future: false })
+    expect(g[2][1]).toEqual({ day: t, n: 0, future: false })
+    expect(g[2][2].future).toBe(true)
+    expect([0, 1, 2, 3, 4, 6, 7, 20].map(heatLevel)).toEqual([0, 1, 2, 2, 3, 3, 4, 4])
   })
 })
