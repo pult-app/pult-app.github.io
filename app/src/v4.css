@@ -449,3 +449,55 @@ body{overscroll-behavior-y:contain}
   html[data-dir="back"]::view-transition-old(root){animation:vt-out-r .32s cubic-bezier(.2,.9,.25,1) both}
   html[data-dir="back"]::view-transition-new(root){animation:vt-in-l .32s cubic-bezier(.2,.9,.25,1) both}
 }
+
+/* ---------- Проход по гайду Apple (29.09): отклик, пружины без лишней отдачи, материалы, типографика ---------- */
+/* Переход экрана без View Transitions: новый экран въезжает сам, касания не блокируются */
+.tabbar{view-transition-name:none}
+@media (prefers-reduced-motion:no-preference){
+  html[data-nav="fwd"] .scr{animation:push-in .38s cubic-bezier(.2,.8,.2,1) both}
+  html[data-nav="back"] .scr{animation:pop-in .34s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes push-in{from{transform:translate3d(22%,0,0); opacity:0}}
+  @keyframes pop-in{from{transform:translate3d(-8%,0,0); opacity:0}}
+}
+@media (prefers-reduced-motion:reduce){
+  html[data-nav] .scr{animation:fade-in .2s ease both}
+  @keyframes fade-in{from{opacity:0}}
+}
+
+/* Пружины: у нажатий и вкладок без перелёта (перелёт только там, где был бросок пальцем, как у свайпа) */
+@media (prefers-reduced-motion:no-preference){
+  .vc,.tile,.hbtn,.btn,.chip,.askgrid button,.icon-btn,.trow .go,.mcard4,.bar-col,.backlink,.nb-back{
+    transition:transform .3s cubic-bezier(.2,.8,.2,1), background-color .2s, color .2s, opacity .2s}
+  .vc:active,.tile:active,.hbtn:active,.btn:active,.chip:active,.askgrid button:active,.icon-btn:active,.mcard4:active{transform:scale(.97); transition-duration:.1s; transition-timing-function:ease-out}
+  .tabbar button{transition:transform .3s cubic-bezier(.2,.8,.2,1), color .12s}
+  .tabbar button:active{transform:scale(.9); transition-duration:.1s}
+  .tabbar .lens{transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+  .sw-fg{transition:transform .4s cubic-bezier(.25,1.3,.5,1)}
+  .sw-act{transition:opacity .15s}
+}
+
+/* Плавная смена темы */
+html.theme-fade, html.theme-fade *{transition:background-color .3s ease, color .3s ease, border-color .3s ease, fill .3s ease, stroke .3s ease !important}
+
+/* Карточка письма: акцент тонкой полоской внутри, а не загибом по скруглению */
+.mcard4{box-shadow:none; position:relative}
+.mcard4::before{content:""; position:absolute; left:0; top:16px; bottom:16px; width:3px; border-radius:0 3px 3px 0; background:var(--act-line)}
+
+/* Шапка: вместо жёсткой линии мягкий край там, где контент уходит под стекло */
+.navbar{border-bottom:0}
+.navbar::after{content:""; position:absolute; left:0; right:0; bottom:-12px; height:12px; pointer-events:none;
+  background:linear-gradient(to bottom, color-mix(in srgb,var(--ground) 55%,transparent), transparent)}
+
+/* Кольцо: число фирменным шрифтом поверх SVG */
+.ring{position:relative; width:112px; height:112px; flex-shrink:0; color:var(--panel-ink)}
+.ring svg{width:100%; height:100%; display:block}
+.ring-label{position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:2px; text-align:center}
+.ring-label b{font-family:var(--f-display); font-weight:600; font-size:28px; line-height:1; letter-spacing:-.03em; font-variant-numeric:tabular-nums}
+.ring-label span{font-size:11px; color:var(--panel-muted); letter-spacing:.01em}
+
+/* Типографика: трекинг по размеру (крупное плотнее, мелкое чуть свободнее) */
+.lt h1{letter-spacing:-.025em}
+.sec-head h2,.ins-head h2{letter-spacing:-.01em}
+.tabbar button span,.spill,.tile span,.pchip{letter-spacing:.01em}
+.tile b,.ins-readout b{letter-spacing:-.02em}
+.step.cur.off .lbl span{color:var(--muted)}

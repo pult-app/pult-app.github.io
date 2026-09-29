@@ -32,14 +32,16 @@ function useCountUp(target: number) {
 function Ring({ value, goal }: { value: number; goal: number }) {
   const shown = useCountUp(value)
   const r = 44, c = 2 * Math.PI * r, p = Math.min(1, value / goal)
+  // Число в HTML поверх кольца: так оно набрано тем же шрифтом, что и заголовки, а не системным из SVG.
   return (
-    <svg className="ring" viewBox="0 0 108 108" role="img" aria-label={`${value} из ${goal} откликов за 7 дней`}>
-      <circle cx="54" cy="54" r={r} fill="none" stroke="currentColor" strokeOpacity=".14" strokeWidth="10" />
-      <circle className="arc" cx="54" cy="54" r={r} fill="none" stroke="var(--signal)" strokeWidth="10" strokeLinecap="round"
-        strokeDasharray={`${c * p} ${c}`} transform="rotate(-90 54 54)" />
-      <text x="54" y="54" textAnchor="middle" dominantBaseline="central" className="ring-n">{shown}</text>
-      <text x="54" y="76" textAnchor="middle" className="ring-l">из {goal}</text>
-    </svg>
+    <div className="ring" role="img" aria-label={`${value} откликов за 7 дней, цель ${goal}`}>
+      <svg viewBox="0 0 108 108" aria-hidden>
+        <circle cx="54" cy="54" r={r} fill="none" stroke="currentColor" strokeOpacity=".14" strokeWidth="10" />
+        <circle className="arc" cx="54" cy="54" r={r} fill="none" stroke="var(--signal)" strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={`${c * p} ${c}`} transform="rotate(-90 54 54)" />
+      </svg>
+      <div className="ring-label"><b>{shown}</b><span>за 7 дней</span></div>
+    </div>
   )
 }
 

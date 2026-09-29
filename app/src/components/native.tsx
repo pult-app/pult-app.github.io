@@ -57,28 +57,44 @@ export function TabBar<T extends string>({ items, value, onPick, badges }: {
 export function Swipe({ children, label, onAction, disabled }: { children: ReactNode; label: string; onAction: () => void; disabled?: boolean }) {
   const [dx, setDx] = useState(0)
   const [drag, setDrag] = useState(false)
-  const st = useRef<{ x: number; y: number; lock: boolean; dead: boolean } | null>(null)
+  const st = useRef<{ x: number; y: number; lock: boolean; dead: boolean; hist: { x: number; t: number }[] } | null>(null)
   if (disabled) return <>{children}</>
   const LIMIT = 150, FIRE = 96
+  // За пределом полосы палец «тянет резину»: чем дальше, тем меньше карточка следует за ним (как в iOS).
+  const rubber = (over: number) => (over * 400 * 0.55) / (400 + 0.55 * Math.abs(over))
+  const follow = (raw: number) => raw > 0 ? rubber(raw) * 0.4 : raw < -LIMIT ? -LIMIT + rubber(raw + LIMIT) : raw
+  const release = () => {
+    const s = st.current
+    st.current = null
+    setDrag(false)
+    if (!s?.lock) { setDx(0); return }
+    // Решаем по скорости и направлению жеста, а не только по расстоянию: быстрый смахивающий жест тоже засчитывается.
+    const h = s.hist, a = h[0], b = h[h.length - 1]
+    const v = a && b && b.t > a.t ? (b.x - a.x) / (b.t - a.t) : 0
+    const fire = dx <= -FIRE || (dx < -36 && v < -0.45)
+    setDx(0)
+    if (fire) { haptic(15); onAction() }
+  }
   return (
     <div className="sw">
-      <div className={'sw-act' + (dx <= -FIRE ? ' ready' : '')} aria-hidden>{Icons.check}<span>{label}</span></div>
-      <div className="sw-fg" style={{ transform: `translateX(${dx}px)`, transition: drag ? 'none' : undefined }}
-        onPointerDown={e => { if (e.pointerType === 'mouse') return; st.current = { x: e.clientX, y: e.clientY, lock: false, dead: false } }}
+      <div className={'sw-act' + (dx <= -FIRE ? ' ready' : '')} aria-hidden style={{ opacity: dx < 0 ? Math.min(1, -dx / 40) : 0 }}>{Icons.check}<span>{label}</span></div>
+      <div className="sw-fg" style={{ transform: dx ? `translate3d(${dx}px,0,0)` : undefined, transition: drag ? 'none' : undefined }}
+        onPointerDown={e => { if (e.pointerType === 'mouse') return; st.current = { x: e.clientX, y: e.clientY, lock: false, dead: false, hist: [] } }}
         onPointerMove={e => {
           const s = st.current
           if (!s || s.dead) return
           const ddx = e.clientX - s.x, ddy = e.clientY - s.y
           if (!s.lock) {
-            if (Math.abs(ddx) > 8 && Math.abs(ddx) > Math.abs(ddy)) { s.lock = true; setDrag(true); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) }
-            else if (Math.abs(ddy) > 8) { s.dead = true; return }
+            if (Math.abs(ddx) > 10 && Math.abs(ddx) > Math.abs(ddy)) { s.lock = true; setDrag(true); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) }
+            else if (Math.abs(ddy) > 10) { s.dead = true; return }
             else return
           }
-          const next = Math.max(-LIMIT, Math.min(0, ddx))
+          s.hist = [...s.hist.slice(-4), { x: e.clientX, t: e.timeStamp }]
+          const next = follow(ddx)
           if ((dx > -FIRE) !== (next > -FIRE)) haptic(8)
           setDx(next)
         }}
-        onPointerUp={() => { const fire = dx <= -FIRE; st.current = null; setDrag(false); setDx(0); if (fire) { haptic(15); onAction() } }}
+        onPointerUp={release}
         onPointerCancel={() => { st.current = null; setDrag(false); setDx(0) }}>
         {children}
       </div>
@@ -147,7 +163,8 @@ export function PullToRefresh({ refresh }: { refresh: () => Promise<unknown> }) 
       if (y0 === null) return
       const d = e.touches[0].clientY - y0
       if (d <= 0 || window.scrollY > 0) { if (pull) { pull = 0; paint(0, false) } return }
-      pull = Math.min(MAX, d * 0.5)
+      // Сопротивление растёт с расстоянием: палец тянет «резину», а не линейку.
+      pull = Math.min(MAX, (d * 220 * 0.55) / (220 + 0.55 * d))
       paint(pull, false)
     }
     const te = () => {

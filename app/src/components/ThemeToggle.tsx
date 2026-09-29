@@ -24,6 +24,12 @@ export function ThemeToggle() {
   const [mode, setMode] = useState<ThemeMode>(readTheme)
   const next = () => {
     const m: ThemeMode = mode === 'dark' ? 'light' : 'dark'
+    // Смена темы без резкой вспышки: цвета перетекают за 0,3 с (Apple: избегать резких скачков яркости).
+    const root = document.documentElement
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      root.classList.add('theme-fade')
+      window.setTimeout(() => root.classList.remove('theme-fade'), 350)
+    }
     setMode(m); applyTheme(m)
     try { localStorage.setItem(KEY, m) } catch { /* пусто */ }
   }

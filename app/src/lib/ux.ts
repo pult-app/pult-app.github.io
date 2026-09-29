@@ -38,11 +38,13 @@ export function scrollToTop() {
   scrollAnim = requestAnimationFrame(step)
 }
 
-/** Смена экрана через View Transitions: вперёд, назад или просто сменой вкладки. */
+let navTimer = 0
+/** Смена экрана вперёд или назад. Новый экран въезжает CSS-анимацией при появлении (html[data-nav]).
+ *  View Transitions больше не используем: они блокируют касания на время анимации, а Safari
+ *  оставлял снимок плавающего таб-бара посреди экрана. Эта анимация не мешает нажимать и прерывается сама. */
 export function transition(fn: () => void, dir: 'fwd' | 'back' | 'tab' = 'tab') {
-  const d = document as Document & { startViewTransition?: (cb: () => void) => { finished: Promise<void> } }
-  if (!d.startViewTransition || reduced() || document.visibilityState !== 'visible') { fn(); return }
-  document.documentElement.dataset.dir = dir
-  const vt = d.startViewTransition(() => flushSync(fn))
-  vt.finished.finally(() => { delete document.documentElement.dataset.dir })
+  clearTimeout(navTimer)
+  document.documentElement.dataset.nav = dir
+  flushSync(fn)
+  navTimer = window.setTimeout(() => { delete document.documentElement.dataset.nav }, 450)
 }
