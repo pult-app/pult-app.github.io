@@ -33,6 +33,7 @@ tags:
   - name: Письма
   - name: Учёба
   - name: Дела
+  - name: Подписки
   - name: Тренажёр
   - name: Расписание
 
@@ -385,6 +386,87 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Unprocessable' }
 
+  /subscriptions:
+    get:
+      tags: [Подписки]
+      operationId: listSubscriptions
+      summary: Список подписок, чтобы не заводить дубли
+      description: Все подписки владельца по алфавиту. Агент смотрит его перед записью из писем.
+      x-required-scopes: [subscriptions:read]
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/SubscriptionStatus' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница подписок
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Subscription' }
+                  nextCursor: { type: [string, 'null'] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /subscriptions/{externalId}:
+    parameters:
+      - name: externalId
+        in: path
+        required: true
+        description: Ключ подписки латиницей, например icloud-200 или yandex-plus
+        schema: { type: string, pattern: '^[a-z0-9-]{2,80}$', example: icloud-200 }
+    put:
+      tags: [Подписки]
+      operationId: upsertSubscription
+      summary: Создать или обновить подписку
+      description: |
+        Создаёт подписку или обновляет существующую, остальные поля при обновлении остаются как были.
+        `nextChargeOn` это дата любого списания, не обязательно ближайшего: следующие приложение считает от неё само.
+
+        Правила, которые защищают решения Германа:
+        - Отменённую подписку агент не возвращает в работу, а подписку на паузе только отменяет (если сервис сообщил об отмене).
+        - Если запись правил Герман, агент меняет только `amount`, `currency`, `nextChargeOn` и `status`
+          (цена и дата берутся из писем сервиса), а название, категорию, способ оплаты, ссылку, заметки и срок напоминания не трогает.
+        - Номера карт не передавать: поле `method` для названия карты или последних цифр.
+      x-required-scopes: [subscriptions:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionInput' }
+            example:
+              name: iCloud+ 200 ГБ
+              amount: 299
+              currency: RUB
+              unit: month
+              every: 1
+              nextChargeOn: '2026-10-26'
+              category: cloud
+              method: Apple ID
+      responses:
+        '200':
+          description: Обновлено
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '201':
+          description: Создано
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
   /flashcards:
     post:
       tags: [Тренажёр]
@@ -464,7 +546,7 @@ components:
       description: |
         Токен агента, 32 случайных байта в base64url. Срок жизни 180 дней.
         Права: runs:write, vacancies:read, vacancies:write, messages:read, messages:write,
-        study:write, tasks:write, cards:write, schedule:write.
+        study:write, tasks:write, cards:write, schedule:write, subscriptions:read, subscriptions:write.
 
   parameters:
     VacancyRef:
@@ -704,6 +786,37 @@ components:
           properties:
             externalId: { type: string }
             isDone: { type: boolean }
+
+    SubscriptionStatus:
+      type: string
+      enum: [active, trial, paused, cancelled]
+      description: trial это пробный период, после которого спишется обычная сумма
+    SubscriptionInput:
+      type: object
+      additionalProperties: false
+      required: [name, amount, nextChargeOn]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        amount: { type: number, minimum: 0, description: Сумма одного списания }
+        currency: { type: string, pattern: '^[A-Z]{3}$', default: RUB }
+        unit: { type: string, enum: [week, month, year], default: month }
+        every: { type: integer, minimum: 1, maximum: 36, default: 1, description: Раз в сколько единиц unit, например unit month и every 3 это раз в 3 месяца }
+        nextChargeOn: { type: string, format: date, description: Дата одного из списаний; следующие считаются от неё }
+        status: { $ref: '#/components/schemas/SubscriptionStatus' }
+        category: { type: string, enum: [ai, cloud, media, software, telecom, education, games, other], default: other }
+        method: { type: [string, 'null'], maxLength: 60, description: Название карты или последние цифры, не полный номер }
+        url: { type: [string, 'null'], format: uri, description: Где управлять подпиской }
+        notes: { type: [string, 'null'], maxLength: 1000 }
+        remindDays: { type: integer, minimum: 0, maximum: 14, default: 1, description: За сколько дней прислать пуш, 0 это в день списания }
+    Subscription:
+      allOf:
+        - $ref: '#/components/schemas/SubscriptionInput'
+        - type: object
+          required: [externalId, version, updatedBy]
+          properties:
+            externalId: { type: [string, 'null'] }
+            version: { type: integer }
+            updatedBy: { $ref: '#/components/schemas/Actor' }
 
     FlashcardInput:
       type: object

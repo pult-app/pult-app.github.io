@@ -9,7 +9,7 @@ flowchart TB
 
   subgraph pult ["Пульт Германа [Software system]"]
     direction TB
-    pwa["<b>PWA</b><br/>[Container: React, Vite, TypeScript]<br/>Экраны Сегодня, Воронка, Входящие,<br/>Учёба, Тренажёр, Аналитика"]
+    pwa["<b>PWA</b><br/>[Container: React, Vite, TypeScript]<br/>Вкладки Сегодня, Воронка, Письма,<br/>Учёба, Деньги; Цифры и Настройки"]
     sw["<b>Service Worker</b><br/>[Container: Workbox]<br/>Кэш для офлайна, приём пушей"]
     subgraph supa ["Supabase Cloud"]
       direction TB
@@ -18,7 +18,9 @@ flowchart TB
       ingest["<b>ingest</b><br/>[Container: Edge Function, Deno]<br/>API для агентов: токены,<br/>права, валидация, идемпотентность"]
       notify["<b>notify</b><br/>[Container: Edge Function, Deno]<br/>Отправка Web Push, тихие часы"]
       sched["<b>schedule-sync</b><br/>[Container: Edge Function, Deno]<br/>Импорт расписания из ЛАД"]
-      db[("<b>База</b><br/>[Container: PostgreSQL]<br/>Вакансии, письма, учёба, дела,<br/>карточки, расписание, журналы.<br/>RLS, триггеры, pg_cron")]
+      cal["<b>calendar</b><br/>[Container: Edge Function, Deno]<br/>Подписка ICS: пары, сроки,<br/>списания подписок; ярлык iOS"]
+      reqs["<b>agent-requests</b><br/>[Container: Edge Function, Deno]<br/>Очередь «Спросить Claude»<br/>для агента"]
+      db[("<b>База</b><br/>[Container: PostgreSQL]<br/>Вакансии, письма, учёба, дела,<br/>карточки, подписки, расписание,<br/>журналы. RLS, триггеры, pg_cron")]
     end
   end
 
@@ -32,6 +34,10 @@ flowchart TB
   rest -- "SQL под RLS" --> db
   agents -- "PUT, PATCH, GET /ingest/v1<br/>[HTTPS, JSON, Bearer]" --> ingest
   ingest -- "SQL, service_role" --> db
+  agents -- "Читают и закрывают запросы<br/>[HTTPS, JSON, Bearer]" --> reqs
+  reqs -- "SQL, service_role" --> db
+  german -- "Календарь iPhone подписан<br/>[HTTPS, ICS]" --> cal
+  cal -- "SQL, service_role" --> db
   db -- "Очередь уведомлений<br/>[pg_net, HTTP]" --> notify
   db -- "Запуск раз в сутки<br/>[pg_cron]" --> sched
   sched -- "GET расписания<br/>[HTTPS]" --> lad
@@ -43,11 +49,11 @@ flowchart TB
   classDef cont fill:#438DD5,stroke:#2E6295,color:#fff
   classDef ext fill:#8C8C8C,stroke:#6B6B6B,color:#fff
   class german person
-  class pwa,sw,auth,rest,ingest,notify,sched,db cont
+  class pwa,sw,auth,rest,ingest,notify,sched,cal,reqs,db cont
   class agents,lad,push ext
 ```
 
-Картинка: [img/c4-containers.png](../img/c4-containers.png).
+Картинка [img/c4-containers.png](../img/c4-containers.png) нарисована для версии 1.0 (без `calendar` и `agent-requests`); актуальна диаграмма выше.
 
 ## Контейнеры
 
@@ -60,6 +66,8 @@ flowchart TB
 | ingest | Supabase Edge Function (Deno, TypeScript) | API для агентов по [OpenAPI](../05-api/openapi.yaml): токены, права, схемы, идемпотентность, If-Match, журнал запусков | агенты |
 | notify | Supabase Edge Function | Выборка очереди `notification`, тихие часы, отправка Web Push, отметка результата | триггер через `pg_net` |
 | schedule-sync | Supabase Edge Function | Раз в сутки забирает JSON расписания из ЛАД, сравнивает хэш, пишет снимок | `pg_cron` |
+| calendar | Supabase Edge Function | Отдаёт ICS-подписку (пары на 14 дней, сроки вакансий, писем и учёбы, дела, списания подписок на 90 дней) и две строки для ярлыка iOS. Адрес с секретным токеном, который меняется в «Настройках» | «Календарь» iPhone, «Команды» |
+| agent-requests | Supabase Edge Function | Очередь запросов «Спросить Claude»: агент читает `queued` и закрывает ответом | агент (`pult-ask-claude`) |
 | База | PostgreSQL в Supabase | Данные, ограничения, триггеры истории и очереди, RLS | Data API, функции |
 
 ## Почему два входа в базу

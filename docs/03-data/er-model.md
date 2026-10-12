@@ -1,6 +1,6 @@
 # ER-модель
 
-Логическая модель данных пульта. Физическая схема с типами, ограничениями, триггерами и RLS лежит в [schema.sql](schema.sql). Схема проверена на PostgreSQL 18.6, тесты в [tests/](tests/).
+Логическая модель данных пульта. Физическая схема с типами, ограничениями, триггерами и RLS лежит в [schema.sql](schema.sql). Схема проверена на PostgreSQL 18.6, тесты в [tests/](tests/). Картинка [img/er-model.png](../img/er-model.png) нарисована для версии 1.0 и не содержит подписок; актуальна диаграмма ниже.
 
 ```mermaid
 erDiagram
@@ -11,6 +11,8 @@ erDiagram
   USERS ||--o{ SCHEDULE_SNAPSHOT : "владеет"
   USERS ||--o{ AGENT_CLIENT : "выдаёт токены"
   USERS ||--o{ PUSH_SUBSCRIPTION : "подписан"
+  USERS ||--o{ SUBSCRIPTION : "платит"
+  SUBSCRIPTION ||--o{ SUBSCRIPTION_REMINDER : "напоминает"
   COMPANY ||--o{ VACANCY : "публикует"
   COMPANY |o--o{ MESSAGE : "пишет"
   VACANCY |o--o{ MESSAGE : "касается"
@@ -160,6 +162,27 @@ erDiagram
     text p256dh
     text auth_secret
   }
+  SUBSCRIPTION {
+    uuid id PK
+    uuid owner_id FK
+    text external_id UK "ключ для агента, например icloud-200"
+    text name
+    numeric amount "сумма одного списания"
+    text currency "ISO, по умолчанию RUB"
+    text unit "week, month, year"
+    smallint every "раз в every единиц"
+    date next_charge_on "якорь: дата одного из списаний"
+    text status "active, trial, paused, cancelled"
+    text category
+    smallint remind_days "0-14"
+    actor_kind updated_by
+    int row_version
+  }
+  SUBSCRIPTION_REMINDER {
+    uuid subscription_id PK
+    date charge_on PK
+    timestamptz queued_at
+  }
 ```
 
 Картинка: [img/er-model.png](../img/er-model.png).
@@ -183,6 +206,8 @@ erDiagram
 | `sync_run` | Журнал запусков агентов | нет | По нему шапка показывает «обновлено ЧЧ:ММ» |
 | `idempotency_key` | Сохранённые ответы на повторные POST | `agent_client_id` + `key` | Живёт 24 часа, чистится `pg_cron` |
 | `push_subscription` | Подписки устройств на Web Push | `endpoint` | |
+| `subscription` | Подписки и регулярные списания: сумма, период, якорная дата, состояние | `external_id`, например `icloud-200` | Следующее списание не хранится, а считается от `next_charge_on` функцией `private.next_charge`. Номера карт не хранятся: `method` это название карты или последние цифры |
+| `subscription_reminder` | Журнал напоминаний о списании | `subscription_id` + `charge_on` | Одно напоминание на одно списание. Политик RLS нет: пишет и читает только функция `private.queue_charge_reminders` |
 
 ## Решения по модели
 
@@ -191,6 +216,9 @@ erDiagram
 3. **Версия строки вместо сравнения по времени.** `row_version` растёт на каждый UPDATE (триггер `touch_row`). API отдаёт её как ETag, агент присылает в `If-Match`.
 4. **История статусов триггером.** Логику нельзя обойти ни из PWA, ни из API. Триггер работает как `security definer`: у пользователя есть право только читать историю.
 5. **Расписание снимком JSON.** Структура пар (числитель, знаменатель, диапазоны недель, подгруппы) целиком приходит из ЛАД, и нормализовать её в таблицы нет смысла, см. [ADR-004](../06-decisions/ADR-004-schedule-snapshot.md).
+
+6. **Подписка хранит якорь, а не «следующую дату».** Следующее списание считается как якорь плюс k периодов, месяцы и годы считаются от якоря (31 января, 28 февраля, 31 марта). Дата не устаревает после списания, одна запись описывает подписку на годы, см. [ADR-006](../06-decisions/ADR-006-subscriptions.md).
+7. **Журнал напоминаний отдельной таблицей.** Если отмечать «напомнено» полем самой подписки, каждое напоминание меняло бы `row_version` и мешало бы проверке версии при правке агентом.
 
 ## Что проверено на реальной базе
 
@@ -208,6 +236,11 @@ erDiagram
 | Второй текущий снимок расписания группы отклоняется | да |
 | Пользователь B не видит данных A и не может писать от имени A | да |
 | Герман меняет статус и добавляет письмо под своей ролью | да, после исправления: первая версия падала на RLS в триггере истории |
+| Регистрация чужого адреса закрыта триггером, адрес из списка проходит | да (12.10.2026 исправлена заглушка `auth.users`: в ней не было колонки `email`) |
+| `private.next_charge`: конец месяца, високосный год, раз в 3 месяца, раз в 2 недели | да, 17 случаев в тесте и 4160 комбинаций против TypeScript-версии без расхождений |
+| Подписка: отрицательная сумма, валюта не ISO, период вне week, month, year, `every` = 0, плохой `external_id` отклоняются | да |
+| Пользователь B не видит подписок A и не может писать от имени A | да |
+| Напоминания о списании: сегодня, завтра, пробный период ставятся, пауза, отмена и далёкая дата нет, повторный запуск дублей не даёт | да |
 
 Как повторить:
 
@@ -215,4 +248,5 @@ erDiagram
 psql -d pult -f tests/00_supabase_stub.sql -f schema.sql
 psql -d pult -f tests/10_constraints_triggers_rls.sql
 psql -d pult -f tests/20_owner_flow.sql
+psql -d pult -f tests/30_subscriptions.sql
 ```

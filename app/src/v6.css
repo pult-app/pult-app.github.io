@@ -83,7 +83,9 @@ button.pchip{border:0; font:inherit; font-size:13px; cursor:pointer; text-align:
 .wk-detail .field input[type=date],.edit-card .field input[type=date]{max-width:200px}
 
 /* ---------- Формы внутри блоков ---------- */
-.card-form{background:var(--surface); border-radius:var(--radius); padding:16px; margin-top:0}
+.card-form{background:var(--surface); border-radius:var(--radius); padding:16px; margin-top:0; grid-template-columns:repeat(2,minmax(0,1fr))}
+.card-form .full{grid-column:1/-1}
+@media (max-width:339px){ .card-form{grid-template-columns:1fr} }
 .edit-card{display:grid; gap:12px; background:var(--surface); border-radius:var(--radius); padding:16px}
 .hero-card .title .per{font-family:var(--f-body); font-size:15px; font-weight:400; color:var(--panel-muted); margin-left:4px}
 .hero-card a.hbtn{text-decoration:none}

@@ -53,7 +53,9 @@ async function send(): Promise<Response> {
       stats.failed++
       continue
     }
-    const payload = JSON.stringify({ title: n.title, body: n.body, url: n.message ? '/#inbox' : '/#today', tag: n.id })
+    // Письмо ведёт в «Письма», списание подписки в «Деньги» (заголовок ставит private.queue_charge_reminders), остальное на «Сегодня».
+    const url = n.message ? '/#inbox' : String(n.title).startsWith('Списание') ? '/#money' : '/#today'
+    const payload = JSON.stringify({ title: n.title, body: n.body, url, tag: n.id })
     let ok = 0
     const errors: string[] = []
     for (const s of subs) {

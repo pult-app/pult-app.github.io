@@ -11,6 +11,8 @@
   python tools/pult.py patch vacancies/hh-123 body.json --if-match 7
   python tools/pult.py put messages/gmail/<id> body.json
   python tools/pult.py card body.json --key <idempotency-key>
+  python tools/pult.py get subscriptions                       -> подписки (перед записью смотреть, чтобы не заводить дубли)
+  python tools/pult.py put subscriptions/icloud-200 body.json  -> подписка: name, amount, nextChargeOn и необязательные поля
   python tools/pult.py req-list [queued|working]               -> запросы «Спросить Claude»
   python tools/pult.py req-set <id> working|done|failed [файл или текст ответа]
 Тело можно передать файлом или строкой JSON. Выход: код 0 при 2xx, иначе 1 и problem+json в stderr.

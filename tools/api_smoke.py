@@ -1,7 +1,9 @@
 """Боевая проверка граничных случаев ingest API на тестовой вакансии zz-api-test.
 
-Запуск: python tools/api_smoke.py. После прогона тестовую вакансию и карточку нужно удалить в SQL
-(в API удаления нет намеренно): delete from vacancy where external_ref = 'zz-api-test'; и карточку по source.
+Запуск: python tools/api_smoke.py. После прогона тестовую вакансию, карточку и подписку нужно удалить в SQL
+(в API удаления нет намеренно): delete from vacancy where external_ref = 'zz-api-test'; delete from subscription
+where external_id = 'zz-api-test'; и карточку по source. Проверки подписок требуют права subscriptions:read и
+subscriptions:write у токена и применённой миграции 0011.
 """
 import json, os, sys, uuid
 sys.path.insert(0, os.path.dirname(__file__))
@@ -65,6 +67,24 @@ check('тот же ключ с другим телом: 422 idempotency-key-reus
 
 s, _, r = call('DELETE', REF)
 check('удаления в API нет: 404', s == 404, f'{s} {r}')
+
+# ---------- подписки (US-20) ----------
+SUB = 'subscriptions/zz-api-test'
+sub = {'name': 'Тестовая подписка', 'amount': 99, 'nextChargeOn': '2026-10-26'}
+s, _, r = call('PUT', SUB, sub)
+check('PUT подписки: 201 или 200, по умолчанию RUB раз в месяц', s in (200, 201) and r.get('currency') == 'RUB' and r.get('unit') == 'month' and r.get('every') == 1, f'{s} {r}')
+s, _, r = call('PUT', SUB, sub)
+check('повторный PUT подписки идемпотентен: 200', s == 200, f'{s} {r}')
+s, _, r = call('PUT', SUB, {**sub, 'amount': -1, 'currency': 'руб', 'card': '4276'})
+check('подписка: минус, не ISO-валюта и неизвестное поле: 422 с полями', s == 422 and {e['field'] for e in r.get('errors', [])} >= {'amount', 'currency', 'card'}, f'{s} {r}')
+s, _, r = call('PUT', SUB, {**sub, 'status': 'cancelled'})
+check('агент может отметить подписку отменённой', s == 200 and r.get('status') == 'cancelled', f'{s} {r}')
+s, _, r = call('PUT', SUB, {**sub, 'status': 'active'})
+check('агент не возвращает отменённую подписку в работу', s == 200 and r.get('status') == 'cancelled', f'{s} {r}')
+s, _, r = call('GET', 'subscriptions?status=cancelled')
+check('список подписок по статусу', s == 200 and any(x.get('externalId') == 'zz-api-test' for x in r.get('items', [])), f'{s}')
+s, _, r = call('DELETE', SUB)
+check('удаления подписки в API нет: 404', s == 404, f'{s} {r}')
 
 print(f'\n{sum(results)} из {len(results)} проверок прошли')
 sys.exit(0 if all(results) else 1)

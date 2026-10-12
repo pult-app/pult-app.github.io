@@ -105,7 +105,7 @@ function SubFields({ v, set, hideStatus }: { v: FormState; set: (p: Partial<Form
       <label>Как часто<select value={v.period} onChange={e => set({ period: e.target.value })}>
         {v.period === 'custom' && <option value="custom">{v.customLabel}</option>}
         {PERIODS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}</select></label>
-      <label>Следующее списание<input type="date" required value={v.date} onChange={e => set({ date: e.target.value })} /></label>
+      <label>Дата списания<input type="date" required value={v.date} onChange={e => set({ date: e.target.value })} /></label>
       {!hideStatus && <label>Состояние<select value={v.status} onChange={e => set({ status: e.target.value as SubStatus })}>
         {SUB_STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>}
       <label>Категория<select value={v.category} onChange={e => set({ category: e.target.value as SubCategory, catTouched: true })}>
@@ -195,7 +195,7 @@ function SubScreen({ s, canWrite, onBack, onUpdate }: { s: Subscription; canWrit
         </div>
       </div>
       {next4.length > 0 && (
-        <Fold id="sub-next" title="Ближайшие списания" meta={fmtMoney(s.amount * next4.length, s.currency)}>
+        <Fold id="sub-next" title="Ближайшие списания">
           <div className="rows">{next4.map(d => <ListRow key={d} lead={fmtDate(d)} title={fmtMoney(s.amount, s.currency)} sub={fmtDow(d) + ' · ' + inLabel(days(t, d))} />)}</div>
         </Fold>)}
       {canWrite && (
@@ -265,7 +265,7 @@ export function Money({ data, canWrite, open, setOpen, onAdd, onUpdate, onAsk }:
         <div className="hero-card">
           <div className="kicker"><i className="calm" />ПОДПИСКИ</div>
           <div className="title">Пока ни одной подписки</div>
-          <div className="text">Добавь подписки, и пульт заранее напомнит о списании, посчитает расходы в месяц и положит платежи в календарь.</div>
+          <div className="text">Добавь подписки: пульт напомнит о списании и посчитает расходы в месяц.</div>
           <div className="acts">
             {canWrite && <button className="hbtn" onClick={() => document.getElementById('money-add')?.scrollIntoView({ behavior: 'smooth' })}>{Icons.plus}Добавить</button>}
             {canWrite && !scan && <button className="hbtn ghost" onClick={find}>{Icons.spark}Найти в почте</button>}

@@ -161,7 +161,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (DEMO) { fetch(import.meta.env.BASE_URL + 'demo.json').then(r => r.json()).then(d => setData({ requests: [], subscriptions: [], moneyReady: true, ...d })); return }
+    if (DEMO) {
+      // ?nosubs и ?nomoney показывают пустую вкладку «Деньги» и состояние «миграция не применена».
+      const q = new URLSearchParams(location.search)
+      fetch(import.meta.env.BASE_URL + 'demo.json').then(r => r.json()).then(d => setData({ requests: [], subscriptions: [], moneyReady: true, ...d, ...(q.has('nosubs') ? { subscriptions: [] } : {}), ...(q.has('nomoney') ? { subscriptions: [], moneyReady: false } : {}) }))
+      return
+    }
     if (!session) return
     refresh()
     const onVis = () => { if (document.visibilityState === 'visible') refresh() }
