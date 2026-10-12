@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { today } from '../lib/dates'
 import type { Flashcard, PultData } from '../lib/types'
 import { Chip, Empty } from './ui'
+import { Fold } from './kit'
 
 export function Trainer({ data, canWrite, onGrade }: { data: PultData; canWrite: boolean; onGrade: (c: Flashcard, knew: boolean) => Promise<void> }) {
   const t = today()
@@ -39,11 +40,12 @@ export function Trainer({ data, canWrite, onGrade }: { data: PultData; canWrite:
           </> : <div className="acts"><button className="btn" onClick={() => setReveal(true)}>Показать ответ</button><span className="note">Сначала ответь вслух</span></div>}
         </>}
       </div>
-      <div className="boxes">
-        {[0, 1, 2, 3, 4].map(b => <span key={b}>{b === 0 ? 'новые' : 'уровень ' + b}: {data.cards.filter(c => c.box === b).length}</span>)}
-        <span>осталось сегодня: {list.length}</span>
-      </div>
-      <p className="note">«Знаю» отодвигает вопрос на 1, 3, 7, 14 дней, «Не знаю» возвращает его завтра.</p>
+      <Fold id="trainer-progress" title="Прогресс" meta={'сегодня осталось ' + list.length} defaultOpen={false}>
+        <div className="boxes">
+          {[0, 1, 2, 3, 4].map(b => <span key={b}>{b === 0 ? 'новые' : 'уровень ' + b}: {data.cards.filter(c => c.box === b).length}</span>)}
+        </div>
+        <p className="note">«Знаю» отодвигает вопрос на 1, 3, 7, 14 дней, «Не знаю» возвращает его завтра.</p>
+      </Fold>
     </section>
   )
 }

@@ -3,7 +3,7 @@
 // Функция развёрнута с verify_jwt = false: авторизация своя, по токену агента.
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import {
-  fromDb, isDowngrade, needsAppliedOn, problem, route, SCHEMAS, toDb, validate, validateSchedule, validateStats,
+  canAgentSetSubStatus, fromDb, isDowngrade, needsAppliedOn, problem, route, SCHEMAS, SUB_AGENT_ALWAYS, toDb, validate, validateSchedule, validateStats,
   type FieldError,
 } from './rules.ts'
 
@@ -231,6 +231,44 @@ const handlers: Record<string, (c: Ctx) => Promise<Response>> = {
       : await c.db.from('task').insert({ ...row, owner_id: c.agent.owner_id, external_id: externalId, created_by: 'agent' }).select().single()
     if (res.error) throw res.error
     return json(cur.data ? 200 : 201, fromDb(res.data))
+  },
+
+  async listSubscriptions(c) {
+    const limit = Math.min(Math.max(Number(c.url.searchParams.get('limit') ?? 50) || 50, 1), 200)
+    const offset = Math.max(Number(c.url.searchParams.get('cursor') ?? 0) || 0, 0)
+    let q = c.db.from('subscription').select('*').eq('owner_id', c.agent.owner_id).order('name')
+    const status = c.url.searchParams.get('status')
+    if (status) q = q.eq('status', status)
+    const { data, error } = await q.range(offset, offset + limit)
+    if (error) throw error
+    return json(200, { items: data.slice(0, limit).map(x => { const { id: _id, row_version, ...rest } = x; return { ...fromDb(rest), version: row_version } }), nextCursor: data.length > limit ? String(offset + limit) : null })
+  },
+
+  async putSubscription(c) {
+    const key = c.params[0]
+    if (!/^[a-z0-9-]{2,80}$/.test(key)) return invalid([{ field: 'externalId', message: 'латиница, цифры, дефис' }])
+    const b = await readJson(c.req) as Record<string, unknown>
+    const e = validate(b, SCHEMAS.subscriptionInput)
+    if (e.length) return invalid(e)
+    const cur = await c.db.from('subscription').select('id, status, updated_by').eq('owner_id', c.agent.owner_id).eq('external_id', key).maybeSingle()
+    const row: Record<string, unknown> = toDb(b)
+    const out = (x: Record<string, unknown>) => { const { id: _id, row_version, ...rest } = x; return { ...fromDb(rest), version: row_version } }
+    if (!cur.data) {
+      const ins = await c.db.from('subscription').insert({ ...row, owner_id: c.agent.owner_id, external_id: key, updated_by: 'agent' }).select().single()
+      if (ins.error) throw ins.error
+      return json(201, out(ins.data), { location: `/ingest/v1/subscriptions/${key}` })
+    }
+    // Паузу и отмену ставит Герман: агент их не отменяет (кроме отмены паузы, если сервис сообщил об отмене).
+    if (b.status !== undefined && !canAgentSetSubStatus(cur.data.status, String(b.status))) delete row.status
+    // Запись правил Герман: имя, категорию, карту, ссылку, заметки и срок напоминания агент не трогает.
+    // Цена, валюта, дата списания и статус берутся из писем сервиса, поэтому их агент обновляет всегда.
+    if (cur.data.updated_by === 'owner') {
+      const keep = new Set(SUB_AGENT_ALWAYS.map(k => toDb({ [k]: 1 })).flatMap(o => Object.keys(o)))
+      for (const k of Object.keys(row)) if (!keep.has(k)) delete row[k]
+    } else row.updated_by = 'agent'
+    const upd = await c.db.from('subscription').update(row).eq('id', cur.data.id).select().single()
+    if (upd.error) throw upd.error
+    return json(200, out(upd.data))
   },
 
   async createFlashcard(c) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { heat, heatLevel, insights, outcomeOf } from './insights'
+import { aging, heat, heatLevel, insights, outcomeOf, weekCount } from './insights'
 import type { Message, Vacancy } from './types'
 
 const v = (id: string, applied_on: string | null, status: Vacancy['status'] = 'applied', channel = 'hh.ru'): Vacancy => ({
@@ -43,5 +43,19 @@ describe('страница «Ещё»: цифры', () => {
     expect(g[2][1]).toEqual({ day: t, n: 0, future: false })
     expect(g[2][2].future).toBe(true)
     expect([0, 1, 2, 3, 4, 6, 7, 20].map(heatLevel)).toEqual([0, 1, 2, 2, 3, 3, 4, 4])
+  })
+})
+
+describe('цифры: неделя и возраст откликов', () => {
+  const t = '2026-09-29'
+  it('weekCount считает подачи за 7 дней, пропущенные и найденные не в счёт', () => {
+    expect(weekCount({ vacancies: [v('a', '2026-09-29'), v('b', '2026-09-23'), v('c', '2026-09-22'), v('d', null, 'found'), v('e', '2026-09-28', 'skip')] }, t)).toBe(2)
+  })
+  it('aging раскладывает отклики без ответа по возрасту', () => {
+    const r = aging({
+      vacancies: [v('a', '2026-09-28'), v('b', '2026-09-24'), v('c', '2026-09-18'), v('d', '2026-09-01'), v('e', '2026-09-10', 'interview'), v('f', '2026-09-02')],
+      messages: [m('f', 'invite', '2026-09-05')],
+    }, t)
+    expect(Object.fromEntries(r.map(x => [x.id, x.n]))).toEqual({ new: 1, week: 1, two: 1, old: 1 })
   })
 })

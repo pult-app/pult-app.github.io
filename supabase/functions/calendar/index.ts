@@ -1,9 +1,10 @@
 // calendar: подписка на календарь (iPhone «Календарь», Google). GET /calendar/<секрет>.ics
 // GET /calendar/<секрет>.txt: две строки для ярлыка iOS «Команды» (ближайшая пара и главный шаг).
-// Пары на 14 дней вперёд, собеседования и сроки вакансий, сроки писем, учёбы и дела.
+// Пары на 14 дней вперёд, собеседования и сроки вакансий, сроки писем, учёбы, дела и списания подписок на 90 дней.
 // Секрет в ссылке: ics_token из private.app_secret, выдаётся владельцу в пульте, можно сменить.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { lessonsFor, LESSON_TYPES, type SchedulePayload } from './schedule.ts'
+import { chargesBetween, money, nextCharge, periodWord, type BillingUnit } from './billing.ts'
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
 
@@ -25,10 +26,11 @@ function event(uid: string, summary: string, start: string, end: string, allDay:
 async function glance(owner: string): Promise<string> {
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' })
   const hm = new Date().toLocaleTimeString('en-GB', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })
-  const [sched, msgs, vacs] = await Promise.all([
+  const [sched, msgs, vacs, subs] = await Promise.all([
     db.from('schedule_snapshot').select('payload').eq('owner_id', owner).eq('is_current', true).maybeSingle(),
     db.from('message').select('action, summary, kind, company(name)').eq('owner_id', owner).eq('is_done', false).in('kind', ['offer', 'invite', 'test', 'question']).order('received_at', { ascending: false }),
     db.from('vacancy').select('title, status, next_step, updated_at, company(name)').eq('owner_id', owner).in('status', ['offer', 'interview', 'test']).order('updated_at', { ascending: false }),
+    db.from('subscription').select('name, amount, currency, unit, every, next_charge_on').eq('owner_id', owner).in('status', ['active', 'trial']),
   ])
   let lesson = 'пар на неделе нет'
   const payload = sched.data?.payload as SchedulePayload | undefined
@@ -50,8 +52,12 @@ async function glance(owner: string): Promise<string> {
   const m = (msgs.data ?? [])[0]
   const v = (vacs.data ?? [])[0]
   const step = m ? `${co(m)}: ${m.action || m.summary}` : v ? `${co(v)}: ${v.next_step || (v.status === 'test' ? 'тестовое' : 'собеседование')}` : 'по поиску работы ничего не горит'
+  // Подписки: ближайшее списание. Таблицы может ещё не быть (миграция 0011 не накатана), тогда строки просто нет.
+  const soon = (subs.data ?? []).map(x => ({ x, d: nextCharge({ next_charge_on: x.next_charge_on, unit: x.unit as BillingUnit, every: x.every }, today) }))
+    .sort((a, b) => a.d.localeCompare(b.d))[0]
+  const money1 = soon ? `\nСписание: ${soon.x.name}, ${money(soon.x.amount, soon.x.currency)}, ${soon.d === today ? 'сегодня' : soon.d.slice(8, 10) + '.' + soon.d.slice(5, 7)}` : ''
   return `Пара: ${lesson}
-Главное: ${step.slice(0, 160)}`
+Главное: ${step.slice(0, 160)}${money1}`
 }
 
 Deno.serve(async req => {
@@ -64,12 +70,13 @@ Deno.serve(async req => {
   if (m[2] === 'txt') return new Response(await glance(owner), { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-cache' } })
 
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' })
-  const [vac, msg, work, task, sched] = await Promise.all([
+  const [vac, msg, work, task, sched, subs] = await Promise.all([
     db.from('vacancy').select('id, title, status, deadline, next_step, company(name)').eq('owner_id', owner).not('deadline', 'is', null),
     db.from('message').select('id, action, summary, deadline, is_done, company(name)').eq('owner_id', owner).eq('is_done', false).not('deadline', 'is', null),
     db.from('study_work').select('id, title, status, deadline, discipline(name)').eq('owner_id', owner).neq('status', 'submitted').not('deadline', 'is', null),
     db.from('task').select('id, title, due_date, due_time, is_done').eq('owner_id', owner).eq('is_done', false),
     db.from('schedule_snapshot').select('payload').eq('owner_id', owner).eq('is_current', true).maybeSingle(),
+    db.from('subscription').select('id, name, amount, currency, unit, every, next_charge_on, status, method, url').eq('owner_id', owner).in('status', ['active', 'trial']),
   ])
   const lines: string[] = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//pult-app//RU', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'X-WR-CALNAME:Пульт', 'X-WR-TIMEZONE:Europe/Moscow', 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H']
@@ -85,6 +92,14 @@ Deno.serve(async req => {
     if (k.due_time) { const hm = k.due_time.slice(0, 5); const end = new Date(`${k.due_date}T${hm}:00+03:00`); end.setMinutes(end.getMinutes() + 30)
       lines.push(...event('t-' + k.id, k.title, utc(k.due_date, hm), end.toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', false)) }
     else lines.push(...event('t-' + k.id, k.title, ymd(k.due_date), ymd(nextDay(k.due_date)), true))
+  }
+  // Списания подписок на 90 дней вперёд: события на весь день, чтобы платёж был виден в календаре и в виджете.
+  const horizon = (() => { const x = new Date(today + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + 90); return x.toISOString().slice(0, 10) })()
+  for (const s of subs.data ?? []) {
+    const b = { next_charge_on: s.next_charge_on, unit: s.unit as BillingUnit, every: s.every }
+    for (const d of chargesBetween(b, today, horizon))
+      lines.push(...event(`s-${s.id}-${d}`, `Списание: ${s.name}, ${money(s.amount, s.currency)}`.slice(0, 90), ymd(d), ymd(nextDay(d)), true,
+        [periodWord(b.unit, b.every), s.status === 'trial' ? 'пробный период заканчивается' : '', s.method ? 'Оплата: ' + s.method : '', s.url ?? ''].filter(Boolean).join('\n')))
   }
   const payload = sched.data?.payload as SchedulePayload | undefined
   if (payload) {

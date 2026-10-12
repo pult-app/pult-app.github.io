@@ -22,6 +22,12 @@ export function addDays(d: string, n: number): string {
   return x.toISOString().slice(0, 10)
 }
 
+const DOW = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб']
+/** День недели коротко: 2026-10-26 -> пн */
+export function fmtDow(d: string): string {
+  return DOW[new Date(d + 'T12:00:00Z').getUTCDay()]
+}
+
 /** 2026-09-27 -> 27.09 */
 export function fmtDate(d?: string | null): string {
   return d ? d.slice(8, 10) + '.' + d.slice(5, 7) : '·'

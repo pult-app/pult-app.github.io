@@ -17,7 +17,7 @@ export function readCache(): PultData | null {
     if (!raw) return null
     // Кэш мог сохранить старая версия приложения: новые поля добиваем пустыми значениями.
     const d = JSON.parse(raw) as Partial<PultData>
-    return { ...d, requests: d.requests ?? [] } as PultData
+    return { ...d, requests: d.requests ?? [], subscriptions: d.subscriptions ?? [], moneyReady: d.moneyReady ?? true } as PultData
   } catch { return null }
 }
 function writeCache(d: PultData) {
@@ -32,8 +32,12 @@ function must<T>(r: { data: T | null; error: { message: string } | null }): T {
   return r.data as T
 }
 
+const SUB_COLS = 'id, external_id, name, amount, currency, unit, every, next_charge_on, status, category, method, url, notes, remind_days, updated_by'
+/** Таблицы подписок может ещё не быть: приложение выкладывается раньше миграции, и это не должно ронять остальные экраны. */
+const noTable = (e: { code?: string; message: string }) => e.code === 'PGRST205' || e.code === '42P01' || /subscription/.test(e.message) && /schema cache|does not exist/.test(e.message)
+
 export async function loadAll(): Promise<PultData> {
-  const [vacancies, messages, works, tasks, cards, schedule, runs, requests] = await Promise.all([
+  const [vacancies, messages, works, tasks, cards, schedule, runs, requests, subs] = await Promise.all([
     supabase.from('vacancy').select('*, company(name)'),
     supabase.from('message').select('id, vacancy_id, source, kind, received_at, sender, subject, summary, action, deadline, is_done, company(name)'),
     supabase.from('study_work').select('*, discipline(name, teacher)'),
@@ -42,7 +46,9 @@ export async function loadAll(): Promise<PultData> {
     supabase.from('schedule_snapshot').select('id, group_code, captured_at, payload').eq('is_current', true).limit(1),
     supabase.from('sync_run').select('id, job, status, started_at, finished_at').order('started_at', { ascending: false }).limit(1),
     supabase.from('agent_request').select('id, vacancy_id, kind, prompt, status, result, error, created_at, done_at').order('created_at', { ascending: false }).limit(30),
+    supabase.from('subscription').select(SUB_COLS).order('name'),
   ])
+  if (subs.error && !noTable(subs.error)) throw new Error(subs.error.message)
   const data: PultData = {
     vacancies: must(vacancies) as unknown as PultData['vacancies'],
     messages: must(messages) as unknown as PultData['messages'],
@@ -52,6 +58,8 @@ export async function loadAll(): Promise<PultData> {
     schedule: (must(schedule) as unknown as PultData['schedule'][])[0] ?? null,
     lastRun: (must(runs) as PultData['lastRun'][])[0] ?? null,
     requests: must(requests) as PultData['requests'],
+    subscriptions: ((subs.data ?? []) as unknown as PultData['subscriptions']).map(s => ({ ...s, amount: Number(s.amount) })),
+    moneyReady: !subs.error,
     loadedAt: new Date().toISOString(),
   }
   writeCache(data)

@@ -3,6 +3,7 @@ import { days, fmtDate, leftLabel, today } from '../lib/dates'
 import { companyName } from '../lib/domain'
 import type { Message, MessageKind, PultData } from '../lib/types'
 import { Empty } from './ui'
+import { Avatar, Fold, ListRow } from './kit'
 import { Icons } from './icons'
 import { Swipe, Title } from './native'
 
@@ -16,7 +17,9 @@ const KIND_VIEW: Record<MessageKind, { label: string; tone: string }> = {
   ack: { label: 'Автоответ', tone: 'wait' },
   info: { label: 'Инфо', tone: 'wait' },
 }
-const needsAction = (m: Message) => !m.is_done && ['invite', 'test', 'question', 'offer'].includes(m.kind)
+const ACTION_KINDS: MessageKind[] = ['invite', 'test', 'question', 'offer']
+const needsActionKind = (k: MessageKind) => ACTION_KINDS.includes(k)
+const needsAction = (m: Message) => !m.is_done && needsActionKind(m.kind)
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 
 function dayTitle(d: string, t: string) {
@@ -26,7 +29,15 @@ function dayTitle(d: string, t: string) {
   return (+d.slice(8, 10) + ' ' + MONTHS[+d.slice(5, 7) - 1]).toUpperCase()
 }
 
-export function Inbox({ data, canWrite, onDone }: { data: PultData; canWrite: boolean; onDone: (id: string, done: boolean) => Promise<void> }) {
+interface Props {
+  data: PultData
+  canWrite: boolean
+  onDone: (id: string, done: boolean) => Promise<void>
+  /** Открыть вакансию, к которой относится письмо. */
+  onOpen: (vacancyId: string) => void
+}
+
+export function Inbox({ data, canWrite, onDone, onOpen }: Props) {
   const [limit, setLimit] = useState(20)
   const t = today()
   const sorted = data.messages.slice().sort((a, b) => b.received_at.localeCompare(a.received_at))
@@ -49,47 +60,48 @@ export function Inbox({ data, canWrite, onDone }: { data: PultData; canWrite: bo
         {todo.length ? todo.map(m => {
           const k = KIND_VIEW[m.kind]
           const dl = m.deadline ? days(t, m.deadline) : null
-          return (
-            <Swipe key={m.id} label="Сделано" disabled={!canWrite} onAction={() => onDone(m.id, true)}>
-            <div className="mcard4">
+          const body = (
+            <>
               <div className="hd"><span className="co">{companyName(m)}</span><span className={'spill ' + k.tone}>{k.label}</span></div>
               <div className="what">{m.action || m.summary}</div>
               {m.action && <div className="why">{m.summary}</div>}
-              <div className="ft">
-                {canWrite && <button className="btn" onClick={() => onDone(m.id, true)}>{Icons.check}Сделано</button>}
-                {dl !== null && <span className="due">{dl < 0 ? 'просрочено' : 'срок ' + leftLabel(dl)}</span>}
-                <span>пришло {fmtDate(m.received_at.slice(0, 10))}</span>
+            </>)
+          return (
+            <Swipe key={m.id} label="Сделано" disabled={!canWrite} onAction={() => onDone(m.id, true)}>
+              <div className="mcard4">
+                {m.vacancy_id
+                  ? <button type="button" className="mopen" onClick={() => onOpen(m.vacancy_id!)} aria-label={'Открыть вакансию: ' + companyName(m)}>{body}<i className="chev" aria-hidden>{Icons.chev}</i></button>
+                  : <div className="mopen static">{body}</div>}
+                <div className="ft">
+                  {canWrite && <button className="btn" onClick={() => onDone(m.id, true)}>{Icons.check}Сделано</button>}
+                  {dl !== null && <span className="due">{dl < 0 ? 'просрочено' : 'срок ' + leftLabel(dl)}</span>}
+                  <span>пришло {fmtDate(m.received_at.slice(0, 10))}</span>
+                </div>
               </div>
-            </div>
             </Swipe>)
         }) : <div className="rows"><Empty>Всё разобрано, действий не нужно.</Empty></div>}
       </div>
 
-      <div className="sec">
-        <div className="sec-head"><h2>Ответы работодателей</h2><span>без действий</span></div>
+      <Fold id="inbox-feed" title="Ответы работодателей" meta={feed.length || ''}>
         {groups.length === 0 && <div className="rows"><Empty>Здесь появятся ответы компаний с почты и hh.ru.</Empty></div>}
         {groups.map(g => (
           <div key={g.day} className="sec">
             <div className="dayhead">{dayTitle(g.day, t)}</div>
             <div className="rows">
               {g.items.map(m => {
-                const k = m.is_done && needsActionKind(m.kind) ? { label: 'Сделано', tone: 'closed' } : KIND_VIEW[m.kind]
+                const done = m.is_done && needsActionKind(m.kind)
+                const k = done ? { label: 'Сделано', tone: 'closed' } : KIND_VIEW[m.kind]
                 const co = companyName(m)
                 return (
-                  <div key={m.id} className="frow">
-                    <div className={'av ' + k.tone}>{co.charAt(0)}</div>
-                    <div className="tx"><b>{co}</b><span>{m.summary}</span></div>
-                    {m.is_done && needsActionKind(m.kind) && canWrite
-                      ? <button className="spill closed" style={{ border: 0 }} onClick={() => onDone(m.id, false)} title="Вернуть в «Нужно сделать»">Сделано</button>
-                      : <span className={'spill ' + k.tone}>{k.label}</span>}
-                  </div>)
+                  <ListRow key={m.id} avatar={<Avatar name={co} tone={k.tone as 'wait'} />} title={co} sub={m.summary}
+                    trail={done && canWrite ? undefined : <span className={'spill ' + k.tone}>{k.label}</span>}
+                    action={done && canWrite ? <button className="spill closed" style={{ border: 0 }} onClick={() => onDone(m.id, false)} title="Вернуть в «Нужно сделать»">Сделано</button> : undefined}
+                    onOpen={m.vacancy_id ? () => onOpen(m.vacancy_id!) : undefined} />)
               })}
             </div>
           </div>))}
         {feed.length > limit && <button className="linkbtn" onClick={() => setLimit(limit + 30)}>Показать ещё ({feed.length - limit})</button>}
-      </div>
+      </Fold>
     </section>
   )
 }
-
-function needsActionKind(k: MessageKind) { return ['invite', 'test', 'question', 'offer'].includes(k) }

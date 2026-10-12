@@ -8,6 +8,7 @@ type Rule =
   | { t: 'string'; req?: boolean; min?: number; max?: number; pattern?: RegExp; nullable?: boolean }
   | { t: 'enum'; req?: boolean; values: readonly string[] }
   | { t: 'date'; req?: boolean; nullable?: boolean }
+  | { t: 'number'; req?: boolean; min?: number; max?: number; int?: boolean }
   | { t: 'datetime'; req?: boolean }
   | { t: 'uri'; nullable?: boolean }
 
@@ -18,6 +19,9 @@ export const MESSAGE_KINDS = ['invite', 'test', 'offer', 'reject', 'question', '
 export const MESSAGE_SOURCES = ['gmail', 'hh_chat', 'telegram', 'manual'] as const
 export const WORK_STATUSES = ['todo', 'doing', 'ready', 'submitted'] as const
 export const TASK_KINDS = ['study', 'career', 'money', 'life'] as const
+export const SUB_STATUSES = ['active', 'trial', 'paused', 'cancelled'] as const
+export const SUB_CATEGORIES = ['ai', 'cloud', 'media', 'software', 'telecom', 'education', 'games', 'other'] as const
+export const SUB_UNITS = ['week', 'month', 'year'] as const
 
 const REF = /^[a-z0-9-]{2,80}$/
 const DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -55,6 +59,12 @@ export function validate(body: unknown, schema: Schema, opts: { partial?: boolea
         break
       case 'date':
         if (typeof v !== 'string' || !isValidDate(v)) errors.push({ field: k, message: 'дата ГГГГ-ММ-ДД' })
+        break
+      case 'number':
+        if (typeof v !== 'number' || !Number.isFinite(v)) { errors.push({ field: k, message: 'ожидается число' }); break }
+        if (r.int && !Number.isInteger(v)) errors.push({ field: k, message: 'ожидается целое число' })
+        if (r.min !== undefined && v < r.min) errors.push({ field: k, message: `не меньше ${r.min}` })
+        if (r.max !== undefined && v > r.max) errors.push({ field: k, message: `не больше ${r.max}` })
         break
       case 'datetime':
         if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.test(v) || Number.isNaN(Date.parse(v)))
@@ -122,6 +132,20 @@ export const SCHEMAS = {
     kind: { t: 'enum', req: true, values: TASK_KINDS },
     notes: { t: 'string', max: 1000, nullable: true },
   },
+  subscriptionInput: {
+    name: { t: 'string', req: true, min: 1, max: 120 },
+    amount: { t: 'number', req: true, min: 0, max: 9999999999 },
+    currency: { t: 'string', pattern: /^[A-Z]{3}$/ },
+    unit: { t: 'enum', values: SUB_UNITS },
+    every: { t: 'number', int: true, min: 1, max: 36 },
+    nextChargeOn: { t: 'date', req: true },
+    status: { t: 'enum', values: SUB_STATUSES },
+    category: { t: 'enum', values: SUB_CATEGORIES },
+    method: { t: 'string', max: 60, nullable: true },
+    url: { t: 'uri', nullable: true },
+    notes: { t: 'string', max: 1000, nullable: true },
+    remindDays: { t: 'number', int: true, min: 0, max: 14 },
+  },
   flashcardInput: {
     topic: { t: 'string', req: true, min: 1, max: 60 },
     question: { t: 'string', req: true, min: 1, max: 500 },
@@ -129,6 +153,20 @@ export const SCHEMAS = {
     source: { t: 'string', max: 200, nullable: true },
   },
 } satisfies Record<string, Schema>
+
+/**
+ * Что агент может сделать со статусом подписки. Решения Германа (пауза, отмена) агент не отменяет:
+ * отменённая остаётся отменённой, поставленную на паузу агент может только отменить, если сервис сообщил об отмене.
+ */
+export function canAgentSetSubStatus(current: string, next: string): boolean {
+  if (current === next) return true
+  if (current === 'cancelled') return false
+  if (current === 'paused') return next === 'cancelled'
+  return true
+}
+
+/** Поля подписки, которые агент меняет, даже если запись правил Герман: цена, дата и валюта берутся из писем сервиса. */
+export const SUB_AGENT_ALWAYS = ['amount', 'currency', 'nextChargeOn', 'status'] as const
 
 /** stats у запуска: объект с неотрицательными целыми. */
 export function validateStats(v: unknown): FieldError[] {
@@ -177,6 +215,7 @@ const MAP: Record<string, string> = {
   appliedOn: 'applied_on', workFormat: 'work_format', nextStep: 'next_step', receivedAt: 'received_at',
   localPath: 'local_path', dueDate: 'due_date', dueTime: 'due_time', isDone: 'is_done', externalRef: 'external_ref',
   followedUpOn: 'followed_up_on', updatedAt: 'updated_at', updatedBy: 'updated_by', externalId: 'external_id',
+  nextChargeOn: 'next_charge_on', remindDays: 'remind_days',
 }
 const BACK = Object.fromEntries(Object.entries(MAP).map(([a, b]) => [b, a]))
 
@@ -195,7 +234,7 @@ export function fromDb(o: Record<string, unknown>, skip: string[] = ['owner_id']
 // ---------- Права токенов ----------
 
 export const SCOPES = ['runs:write', 'vacancies:read', 'vacancies:write', 'messages:read', 'messages:write',
-  'study:write', 'tasks:write', 'cards:write', 'schedule:write'] as const
+  'study:write', 'tasks:write', 'cards:write', 'schedule:write', 'subscriptions:read', 'subscriptions:write'] as const
 
 /** Маршрут -> нужное право. null означает «маршрута нет». */
 export function route(method: string, path: string): { scope: string; name: string; params: string[] } | null {
@@ -212,6 +251,8 @@ export function route(method: string, path: string): { scope: string; name: stri
   if (m === 'PUT' && is('messages', null, null)) return { scope: 'messages:write', name: 'putMessage', params: [p[1], p[2]] }
   if (m === 'PUT' && is('study-works', null)) return { scope: 'study:write', name: 'putStudyWork', params: [p[1]] }
   if (m === 'PUT' && is('tasks', null)) return { scope: 'tasks:write', name: 'putTask', params: [p[1]] }
+  if (m === 'GET' && is('subscriptions')) return { scope: 'subscriptions:read', name: 'listSubscriptions', params: [] }
+  if (m === 'PUT' && is('subscriptions', null)) return { scope: 'subscriptions:write', name: 'putSubscription', params: [p[1]] }
   if (m === 'POST' && is('flashcards')) return { scope: 'cards:write', name: 'createFlashcard', params: [] }
   if (m === 'PUT' && is('schedules', null)) return { scope: 'schedule:write', name: 'putSchedule', params: [p[1]] }
   return null

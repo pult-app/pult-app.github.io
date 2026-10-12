@@ -1,5 +1,6 @@
 import { addDays, days } from './dates'
-import type { Message, MessageKind, PultData, TaskKind, Vacancy, VacancyStatus, WorkStatus } from './types'
+import { fmtMoney, upcoming } from './billing'
+import type { Message, MessageKind, PultData, StudyWork, TaskKind, Vacancy, VacancyStatus, WorkStatus } from './types'
 
 export const STATUSES: { id: VacancyStatus; label: string; c: string }[] = [
   { id: 'found', label: 'Найдена', c: '--s-found' },
@@ -62,32 +63,68 @@ export interface AgendaItem {
   time?: string | null
   kind: TaskKind
   title: string
-  goto?: 'funnel' | 'inbox' | 'study'
+  /** Куда ведёт строка и что там открыть: id вакансии или подписки. */
+  goto?: 'funnel' | 'inbox' | 'study' | 'money'
+  ref?: string
   taskId?: string
 }
 
-/** Единая повестка: дедлайны вакансий, писем, учёбы, дела и напоминания (US-02). */
+const norm = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]+/g, '')
+
+/** Дело «Продление iCloud+» в день списания подписки iCloud+ повторяет её строку: оставляем строку подписки. */
+function dupOfCharge(task: { title: string; kind: TaskKind; due_date: string }, charges: { date: string; name: string }[]) {
+  if (task.kind !== 'money') return false
+  const t = norm(task.title)
+  return charges.some(c => c.date === task.due_date && norm(c.name).length >= 3 && t.includes(norm(c.name)))
+}
+
+/** Единая повестка: дедлайны вакансий, писем и учёбы, дела и списания подписок (US-02, US-20).
+ *  Напоминания «отклик без ответа» сюда не входят: у них нет срока, это одна сводная строка (staleCount). */
 export function agenda(d: PultData, t: string): AgendaItem[] {
   const out: AgendaItem[] = []
   for (const v of d.vacancies) {
     if (v.deadline && !['reject', 'skip', 'offer'].includes(v.status))
-      out.push({ date: v.deadline, kind: 'career', title: companyName(v) + ': ' + (v.next_step || 'дедлайн'), goto: 'funnel' })
+      out.push({ date: v.deadline, kind: 'career', title: companyName(v) + ': ' + (v.next_step || 'дедлайн'), goto: 'funnel', ref: v.id })
   }
   for (const m of d.messages) {
     if (m.deadline && !m.is_done)
-      out.push({ date: m.deadline, kind: 'career', title: companyName(m) + ': ' + (m.action || m.summary), goto: 'inbox' })
+      out.push({ date: m.deadline, kind: 'career', title: companyName(m) + ': ' + (m.action || m.summary), goto: 'inbox', ref: m.vacancy_id ?? undefined })
   }
   for (const w of d.works) {
     if (w.deadline && w.status !== 'submitted')
-      out.push({ date: w.deadline, kind: 'study', title: (w.discipline?.name ?? '') + ': ' + w.title + (w.status === 'ready' ? ' (готово, сдать)' : ''), goto: 'study' })
+      out.push({ date: w.deadline, kind: 'study', title: (w.discipline?.name ?? '') + ': ' + w.title + (w.status === 'ready' ? ' (готово, сдать)' : ''), goto: 'study', ref: w.id })
   }
+  const charges = upcoming(d.subscriptions, t, 30)
+  const chargeKeys = charges.map(u => ({ date: u.date, name: u.sub.name }))
   for (const k of d.tasks) {
-    if (!k.is_done) out.push({ date: k.due_date, time: k.due_time?.slice(0, 5), kind: k.kind, title: k.title, taskId: k.id })
+    if (!k.is_done && !dupOfCharge(k, chargeKeys)) out.push({ date: k.due_date, time: k.due_time?.slice(0, 5), kind: k.kind, title: k.title, taskId: k.id })
   }
-  for (const v of followUps(d, t)) {
-    out.push({ date: addDays(v.applied_on!, FOLLOW_DAYS), kind: 'career', title: 'Напомнить о себе: ' + companyName(v) + ', отклик без ответа ' + days(v.applied_on!, t) + ' дн.', goto: 'funnel' })
-  }
+  for (const u of charges)
+    out.push({ date: u.date, kind: 'money', title: 'Списание: ' + u.sub.name + ', ' + fmtMoney(u.sub.amount, u.sub.currency), goto: 'money', ref: u.sub.id })
   return out.sort((a, b) => (a.date + (a.time ?? '')).localeCompare(b.date + (b.time ?? '')))
+}
+
+/** Сколько откликов пора напомнить о себе (одна сводная строка на «Сегодня», список в воронке). */
+export const staleCount = (d: Pick<PultData, 'vacancies' | 'messages'>, t: string) => followUps(d, t).length
+
+/** Внутри вкладки «Ждём»: пора напомнить, ждём ответа, резерв. */
+export type WaitGroup = 'stale' | 'fresh' | 'reserve'
+export function waitGroup(v: Vacancy, messages: Message[], t: string): WaitGroup {
+  if (v.status === 'reserve') return 'reserve'
+  return followUps({ vacancies: [v], messages }, t).length ? 'stale' : 'fresh'
+}
+
+/** Учебные работы по срочности: срок прошёл или в ближайшие 3 дня, остальные несданные, сданные. */
+export function groupWorks(works: StudyWork[], t: string): { urgent: StudyWork[]; work: StudyWork[]; done: StudyWork[] } {
+  const order: Record<WorkStatus, number> = { doing: 0, ready: 1, todo: 2, submitted: 3 }
+  const byDeadline = (a: StudyWork, b: StudyWork) => (order[a.status] - order[b.status]) || String(a.deadline ?? '9999').localeCompare(String(b.deadline ?? '9999')) || a.title.localeCompare(b.title, 'ru')
+  const open = works.filter(w => w.status !== 'submitted')
+  const urgent = open.filter(w => w.deadline && days(t, w.deadline) <= 3).sort((a, b) => String(a.deadline).localeCompare(String(b.deadline)))
+  return {
+    urgent,
+    work: open.filter(w => !urgent.includes(w)).sort(byDeadline),
+    done: works.filter(w => w.status === 'submitted').sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+  }
 }
 
 /** Следующее состояние карточки после ответа (US-09). */

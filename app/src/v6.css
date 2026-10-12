@@ -1,0 +1,121 @@
+/* Пульт, редизайн 12.10.2026 (v6): меньше повторов, всё нажимается, второстепенное сворачивается; новая вкладка «Деньги».
+   Слой поверх v4.css: новые кирпичики (Fold, ListRow), подписки, правки старых блоков. */
+
+/* ---------- Сворачиваемые блоки ---------- */
+.fold{display:grid}
+.fold-h{margin:0; font:inherit}
+.fold-head{display:flex; align-items:center; gap:10px; width:100%; min-height:44px; padding:6px 4px; background:none; border:0; color:var(--ink); text-align:left}
+.fold-title{font-size:20px; font-weight:600; letter-spacing:-.01em}
+.fold-meta{margin-left:auto; max-width:58%; font-size:13px; color:var(--muted); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fold-chev{width:20px; height:20px; flex-shrink:0; display:grid; place-items:center; color:var(--muted); transition:transform .25s var(--ease)}
+.fold-chev svg{width:18px; height:18px}
+.fold.open .fold-chev{transform:rotate(90deg)}
+.fold-body{display:grid; grid-template-rows:0fr; transition:grid-template-rows .3s var(--ease)}
+.fold.open .fold-body{grid-template-rows:1fr}
+.fold-in{min-height:0; overflow:hidden; display:grid; gap:10px; align-content:start}
+.fold:not(.open) .fold-in{visibility:hidden; transition:visibility 0s .3s}
+@media (prefers-reduced-motion:reduce){ .fold-body,.fold-chev{transition:none} }
+
+.fold.card{background:var(--surface); border-radius:var(--radius); padding:2px 16px 0}
+.fold.card .fold-head{padding-inline:0}
+.fold.card .fold-title{font-size:17px}
+.fold.card .fold-in{gap:12px}
+.fold.card .fold-in::after{content:""; display:block; height:2px}
+@media (hover:hover) and (pointer:fine){ .fold-head:hover .fold-title{color:var(--accent-text)} }
+
+/* ---------- Строки списков: нажимаются целиком ---------- */
+.rows{--sep:82px}
+.rows:has(.has-av){--sep:64px}
+.rows > * + *{position:relative}
+.rows > * + *::before{content:""; position:absolute; top:0; right:0; left:var(--sep); height:1px; background:var(--line); z-index:2; pointer-events:none}
+.lrow{display:flex; align-items:center; background:var(--surface); min-height:60px; position:relative}
+.lrow .hit{display:flex; align-items:center; gap:14px; flex:1; min-width:0; min-height:60px; padding:10px 16px; background:none; border:0; color:inherit; text-align:left; font:inherit}
+.lrow button.hit{cursor:pointer}
+.lrow .lead{width:52px; flex-shrink:0; font-family:var(--f-mono); font-size:13.5px; font-weight:500; font-variant-numeric:tabular-nums; color:var(--ink); white-space:nowrap}
+.lrow .lead.hot{color:#C0331F}
+.lrow .lead.warn{color:var(--act-fg)}
+.lrow .lead.ok{color:var(--win-fg)}
+:root[data-theme="dark"] .lrow .lead.hot{color:#FF8A7A}
+.lrow .tx{display:grid; gap:2px; flex:1; min-width:0}
+.lrow .tx b{font-size:16px; font-weight:500; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
+.lrow .tx > span{font-size:13px; color:var(--muted); overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.lrow .trail{flex-shrink:0; display:flex; align-items:center; gap:6px; font-size:14px; color:var(--muted)}
+.lrow .trail .num{color:var(--ink); font-weight:500}
+.lrow .chev{display:grid; place-items:center; width:14px; height:14px; flex-shrink:0; color:var(--muted); opacity:.55}
+.lrow .chev svg{width:14px; height:14px}
+.lrow.past{opacity:.45}
+.lrow .chk{flex-shrink:0; width:24px; height:24px; margin-right:16px}
+.lrow .now{font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px; background:var(--ink); color:var(--ground)}
+.lrow .av{width:36px; height:36px; flex-shrink:0; border-radius:18px; display:grid; place-items:center; font-size:15px; font-weight:600}
+.lrow > .spill{margin-right:16px}
+.lrow.open{background:color-mix(in srgb,var(--accent) 6%,var(--surface))}
+@media (prefers-reduced-motion:no-preference){ .lrow button.hit:active{background:color-mix(in srgb,var(--accent) 8%,transparent)} .lrow .chev{transition:transform .25s var(--ease)} .lrow.open .chev{transform:rotate(90deg)} }
+@media (hover:hover) and (pointer:fine){ .lrow button.hit:hover{background:color-mix(in srgb,var(--accent) 5%,transparent)} }
+.lrow .tx span.sub-hot{color:var(--act-fg)}
+
+/* ---------- «Сегодня» ---------- */
+button.pchip{border:0; font:inherit; font-size:13px; cursor:pointer; text-align:left}
+.pulse{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pulse .tile b em,.money-tiles .tile b em{font-style:normal; font-size:.72em; opacity:.6; margin-left:1px}
+.pulse .tile span{line-height:1.25; overflow-wrap:anywhere}
+.pillbtn{display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:0 14px 0 12px; border-radius:20px; border:0; background:var(--surface); color:var(--ink); font-size:15px; font-weight:500}
+.pillbtn svg{width:18px; height:18px; color:var(--accent-text)}
+.linkbtn{font-size:14px; padding:8px 4px; text-decoration:none; justify-self:start}
+@media (max-width:360px){ .pulse{grid-template-columns:repeat(2,minmax(0,1fr))} }
+
+/* ---------- Воронка ---------- */
+.ftabs{margin-top:-4px}
+.rows:empty{display:none}
+
+/* ---------- Письма ---------- */
+.mopen{display:grid; gap:10px; width:100%; text-align:left; background:none; border:0; color:inherit; padding:0 22px 0 0; position:relative; font:inherit}
+.mopen.static{padding-right:0}
+.mopen > .chev{position:absolute; right:0; top:50%; width:14px; height:14px; margin-top:-7px; color:var(--muted); opacity:.55; display:grid; place-items:center}
+.mopen > .chev svg{width:14px; height:14px}
+.mcard4 .hd{padding-right:0}
+
+/* ---------- Учёба ---------- */
+.study-list{display:grid; gap:18px}
+.wk{display:grid; background:var(--surface)}
+.wk-detail{display:grid; gap:12px; padding:2px 16px 16px; background:color-mix(in srgb,var(--accent) 6%,var(--surface))}
+.path-row{display:flex; gap:10px; align-items:center; justify-content:space-between}
+.path-row .path{font-family:var(--f-mono); font-size:12px; color:var(--muted); overflow-wrap:anywhere}
+.wk-detail .field input[type=date],.edit-card .field input[type=date]{max-width:200px}
+
+/* ---------- Формы внутри блоков ---------- */
+.card-form{background:var(--surface); border-radius:var(--radius); padding:16px; margin-top:0}
+.edit-card{display:grid; gap:12px; background:var(--surface); border-radius:var(--radius); padding:16px}
+.hero-card .title .per{font-family:var(--f-body); font-size:15px; font-weight:400; color:var(--panel-muted); margin-left:4px}
+.hero-card a.hbtn{text-decoration:none}
+
+/* ---------- Цифры ---------- */
+.hrow.tap{width:100%; background:none; border:0; padding:6px 0; color:inherit; text-align:left; font:inherit; cursor:pointer; border-radius:8px}
+@media (hover:hover) and (pointer:fine){ .hrow.tap:hover .hbar i{background:var(--accent-text)} }
+.fold.card .seg{margin-bottom:2px}
+.fold.card .ins-readout{padding:0}
+
+/* ---------- Деньги ---------- */
+.money-tiles{grid-template-columns:repeat(auto-fit,minmax(0,1fr))}
+.money-tiles .tile{min-height:72px}
+.money-tiles .tile b{font-size:20px; line-height:1.1; white-space:nowrap}
+.lrow .amt{white-space:nowrap}
+.strip{display:grid; grid-template-columns:repeat(30,minmax(0,1fr)); gap:2px; height:96px; align-items:end; touch-action:pan-y; user-select:none; -webkit-user-select:none}
+.strip-col{position:relative; height:100%; display:flex; align-items:flex-end; padding:0; border:0; border-radius:4px; background:transparent}
+.strip-col i{display:block; width:100%; border-radius:3px 3px 1px 1px; background:var(--accent); transform-origin:bottom}
+.strip-col i.zero{background:var(--sunk)}
+.strip-col.on{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.strip-col.on i.zero{background:var(--muted)}
+.strip-col.today::after{content:""; position:absolute; left:50%; bottom:-7px; width:4px; height:4px; margin-left:-2px; border-radius:2px; background:var(--ink)}
+@media (prefers-reduced-motion:no-preference){ .strip-col i{animation:grow-y .5s var(--ease) both; animation-delay:calc(var(--i, 0) * 14ms)} }
+.catbar{display:flex; gap:3px; height:12px}
+.catbar i{display:block; min-width:4px; border-radius:3px; background:var(--cc)}
+.catlist{display:grid; gap:8px}
+.catline{display:grid; grid-template-columns:10px 1fr auto auto; gap:10px; align-items:center; font-size:14px}
+.catline i{width:10px; height:10px; border-radius:5px; background:var(--cc)}
+.catline .num{color:var(--muted); font-size:13px; text-align:right; min-width:3.2em}
+.catline .num:last-child{color:var(--ink); min-width:6em}
+[data-c="ai"]{--cc:#8E7CF0} [data-c="cloud"]{--cc:#3FA7D6} [data-c="media"]{--cc:#E26A8D} [data-c="software"]{--cc:#4FBF9F}
+[data-c="telecom"]{--cc:#E0A63A} [data-c="education"]{--cc:#6C8BEF} [data-c="games"]{--cc:#B86AE0} [data-c="other"]{--cc:#9A9A9F}
+.askline-row{display:flex}
+.askline-row .btn{display:inline-flex; align-items:center; gap:8px}
+.askline-row .btn svg{width:18px; height:18px}

@@ -3,7 +3,10 @@ grant usage on schema public, auth to authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;
 grant execute on function auth.uid() to authenticated;
 
-insert into auth.users values ('00000000-0000-0000-0000-00000000000a'), ('00000000-0000-0000-0000-00000000000b');
+-- Триггер закрытой регистрации (US-15) на время фикстур выключен; ниже проверяется отдельно.
+alter table auth.users disable trigger guard_signup;
+insert into auth.users (id) values ('00000000-0000-0000-0000-00000000000a'), ('00000000-0000-0000-0000-00000000000b');
+alter table auth.users enable trigger guard_signup;
 
 -- данные владельца A (как Edge Function с service_role, RLS не действует на суперпользователя)
 insert into company (id, owner_id, name) values ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a', 'Компания N');
@@ -55,3 +58,15 @@ exception when insufficient_privilege then raise notice 'OK: B не может �
 set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
 select 'rls as A' as check, (select count(*) from vacancy) vacancies, (select count(*) from message) messages, (select count(*) from vacancy_status_history) history;
 reset role;
+
+-- Закрытая регистрация (US-15): чужой адрес отклоняется, адрес из списка проходит
+insert into private.allowed_signup values ('owner@example.test');
+do $$ begin
+  begin insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000f1', 'stranger@example.test');
+        raise exception 'FAIL: чужой адрес зарегистрирован';
+  exception when insufficient_privilege then raise notice 'OK: регистрация чужого адреса закрыта'; end;
+  insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000f2', 'Owner@Example.Test');
+  raise notice 'OK: адрес из списка проходит (регистр не важен)';
+end $$;
+delete from auth.users where id in ('00000000-0000-0000-0000-0000000000f2');
+delete from private.allowed_signup;

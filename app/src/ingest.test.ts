@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromDb, isDowngrade, needsAppliedOn, route, SCHEMAS, toDb, validate, validateSchedule, validateStats } from '../../supabase/functions/ingest/rules.ts'
+import { canAgentSetSubStatus, fromDb, isDowngrade, needsAppliedOn, route, SCHEMAS, SUB_AGENT_ALWAYS, toDb, validate, validateSchedule, validateStats } from '../../supabase/functions/ingest/rules.ts'
 
 describe('маршруты и права', () => {
   it('операции из OpenAPI находят своё право', () => {
@@ -8,11 +8,15 @@ describe('маршруты и права', () => {
     expect(route('PUT', '/messages/gmail/18c3%2Fab')).toMatchObject({ scope: 'messages:write', params: ['gmail', '18c3/ab'] })
     expect(route('PUT', '/schedules/%D0%9F%D0%98-124')?.params).toEqual(['ПИ-124'])
     expect(route('POST', '/flashcards')?.scope).toBe('cards:write')
+    expect(route('GET', '/subscriptions')?.scope).toBe('subscriptions:read')
+    expect(route('PUT', '/subscriptions/icloud-200')).toMatchObject({ scope: 'subscriptions:write', name: 'putSubscription', params: ['icloud-200'] })
   })
   it('удаления и неизвестных путей нет', () => {
     expect(route('DELETE', '/vacancies/x')).toBeNull()
     expect(route('GET', '/tasks')).toBeNull()
     expect(route('PUT', '/vacancies')).toBeNull()
+    expect(route('DELETE', '/subscriptions/x')).toBeNull()
+    expect(route('POST', '/subscriptions')).toBeNull()
   })
 })
 
@@ -68,5 +72,37 @@ describe('перевод полей', () => {
   it('camelCase в snake_case и обратно, owner_id не отдаётся', () => {
     expect(toDb({ appliedOn: '2026-09-23', company: 'X' }, ['company'])).toEqual({ applied_on: '2026-09-23' })
     expect(fromDb({ owner_id: 'u', next_step: 'n', is_done: false })).toEqual({ nextStep: 'n', isDone: false })
+  })
+})
+
+describe('подписки', () => {
+  const sub = { name: 'iCloud+ 200 ГБ', amount: 299, nextChargeOn: '2026-10-26' }
+  it('минимальное тело проходит, остальное берётся по умолчанию из базы', () => {
+    expect(validate(sub, SCHEMAS.subscriptionInput)).toEqual([])
+    expect(validate({ ...sub, currency: 'RUB', unit: 'month', every: 1, status: 'trial', category: 'cloud', remindDays: 3, url: 'https://apple.com' }, SCHEMAS.subscriptionInput)).toEqual([])
+  })
+  it('сумма, валюта, период и категория проверяются', () => {
+    const e = validate({ ...sub, amount: -5, currency: 'руб', unit: 'day', every: 0, category: 'food', status: 'x', remindDays: 30 }, SCHEMAS.subscriptionInput)
+    expect(e.map(x => x.field).sort()).toEqual(['amount', 'category', 'currency', 'every', 'remindDays', 'status', 'unit'])
+  })
+  it('число не принимает строку, целое не принимает дробь', () => {
+    expect(validate({ ...sub, amount: '299' }, SCHEMAS.subscriptionInput).map(x => x.field)).toEqual(['amount'])
+    expect(validate({ ...sub, every: 1.5 }, SCHEMAS.subscriptionInput).map(x => x.field)).toEqual(['every'])
+  })
+  it('обязательные поля и неизвестные ключи', () => {
+    expect(validate({ amount: 1 }, SCHEMAS.subscriptionInput).map(x => x.field).sort()).toEqual(['name', 'nextChargeOn'])
+    expect(validate({ ...sub, card: '4276' }, SCHEMAS.subscriptionInput).map(x => x.field)).toEqual(['card'])
+  })
+  it('решения Германа агент не отменяет', () => {
+    expect(canAgentSetSubStatus('active', 'cancelled')).toBe(true)
+    expect(canAgentSetSubStatus('trial', 'active')).toBe(true)
+    expect(canAgentSetSubStatus('cancelled', 'active')).toBe(false)
+    expect(canAgentSetSubStatus('paused', 'active')).toBe(false)
+    expect(canAgentSetSubStatus('paused', 'cancelled')).toBe(true)
+    expect(canAgentSetSubStatus('cancelled', 'cancelled')).toBe(true)
+  })
+  it('поля, которые агент меняет всегда, переводятся в колонки', () => {
+    expect(SUB_AGENT_ALWAYS.flatMap(k => Object.keys(toDb({ [k]: 1 })))).toEqual(['amount', 'currency', 'next_charge_on', 'status'])
+    expect(toDb({ nextChargeOn: '2026-10-26', remindDays: 2 })).toEqual({ next_charge_on: '2026-10-26', remind_days: 2 })
   })
 })

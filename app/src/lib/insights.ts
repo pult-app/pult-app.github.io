@@ -1,8 +1,8 @@
 import { addDays, days } from './dates'
-import { LIVE_KINDS } from './domain'
+import { hasLiveReply, LIVE_KINDS } from './domain'
 import type { Message, PultData, Vacancy } from './types'
 
-// Цифры для страницы «Ещё»: темп подачи, воронка, чем отвечают, каналы, скорость ответа.
+// Цифры поиска работы (экран «Цифры»): темп подачи, воронка, где застряли отклики, чем отвечают, каналы, скорость ответа.
 
 export const WEEK_GOAL = 20
 
@@ -13,6 +13,23 @@ export function channelOf(v: Vacancy): string {
   if (c.includes('хабр') || c.includes('habr')) return 'Хабр Карьера'
   if (c.includes('fut')) return 'FutureToday'
   return 'Сайты компаний'
+}
+
+/** Отклики за последние 7 дней: на «Сегодня» это число против цели недели. */
+export function weekCount(d: Pick<PultData, 'vacancies'>, t: string): number {
+  return d.vacancies.filter(v => v.applied_on && v.status !== 'skip' && days(v.applied_on, t) >= 0 && days(v.applied_on, t) <= 6).length
+}
+
+/** Возраст откликов без живого ответа: где застряли. Считаются только поданные (applied), без отказа, приглашения и вопроса. */
+export const AGING = [
+  { id: 'new', label: 'до 3 дней', from: 0, to: 3 },
+  { id: 'week', label: '4-7 дней', from: 4, to: 7 },
+  { id: 'two', label: '8-14 дней', from: 8, to: 14 },
+  { id: 'old', label: 'больше 14 дней', from: 15, to: Infinity },
+] as const
+export function aging(d: Pick<PultData, 'vacancies' | 'messages'>, t: string) {
+  const pool = d.vacancies.filter(v => v.status === 'applied' && v.applied_on && !hasLiveReply(d.messages, v.id))
+  return AGING.map(b => ({ ...b, n: pool.filter(v => days(v.applied_on!, t) >= b.from && days(v.applied_on!, t) <= b.to).length }))
 }
 
 export const HEAT_WEEKS = 18

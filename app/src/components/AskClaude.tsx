@@ -13,7 +13,7 @@ const PRESETS: { kind: AgentRequest['kind']; label: string; prompt: (v: Vacancy,
   { kind: 'prep', label: 'Мок-интервью', prompt: (v, co) => `Проведи со мной мок-интервью как в ${co} на «${v.title}»: 8 вопросов от простого к сложному, к каждому короткий эталонный ответ на моих примерах и на что обратить внимание.` },
   { kind: 'analyze', label: 'Разбери вакансию', prompt: (v, co) => `Разбери вакансию ${co} «${v.title}»: ключевые требования, что у меня уже есть, чего не хватает и как это закрыть до собеса.` },
 ]
-const SENT = 'В очереди. Ответ придёт пушем, обычно за полчаса.'
+const SENT = 'В очереди. Ответ придёт пушем, когда Claude разберёт очередь.'
 
 const STATUS: Record<AgentRequest['status'], { label: string; tone: string }> = {
   queued: { label: 'В очереди', tone: 'wait' },
@@ -82,7 +82,6 @@ export function AskBox({ v, company, canWrite, onAsk }: { v: Vacancy; company: s
   }
   return (
     <div className="askbox">
-      <div className="hd">{Icons.spark}<h2>Спросить Claude</h2></div>
       <div className="askgrid">
         {PRESETS.map(p => (
           <button key={p.label} aria-pressed={picked === p.label} onClick={() => ask(p.label, { kind: p.kind, prompt: p.prompt(v, company), vacancy_id: v.id })}>{p.label}</button>))}

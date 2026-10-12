@@ -1,4 +1,7 @@
 // Строки таблиц, как их отдаёт Data API (docs/03-data/schema.sql).
+import type { Subscription } from './billing'
+
+export type { Subscription } from './billing'
 
 export type VacancyStatus = 'found' | 'applied' | 'test' | 'interview' | 'offer' | 'reserve' | 'reject' | 'skip'
 export type MessageKind = 'invite' | 'test' | 'offer' | 'reject' | 'question' | 'ack' | 'info'
@@ -106,5 +109,8 @@ export interface PultData {
   schedule: ScheduleSnapshot | null
   lastRun: SyncRun | null
   requests: AgentRequest[]
+  subscriptions: Subscription[]
+  /** false, пока в базе нет таблицы подписок (миграция 0011 не применена): вкладка «Деньги» тогда объясняет, что делать. */
+  moneyReady: boolean
   loadedAt: string
 }

@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { clearCache, configured, ensureByName, insert, loadAll, readCache, slug, supabase, update } from './lib/api'
 import { days, fmtDate, today } from './lib/dates'
 import { grade, statusPatch, type FunnelTab } from './lib/domain'
+import { upcoming } from './lib/billing'
 import type { Flashcard, PultData, Vacancy, VacancyStatus } from './lib/types'
 import { Today } from './components/Today'
 import { Funnel, type NewVacancy } from './components/Funnel'
@@ -10,34 +11,38 @@ import { Inbox } from './components/Inbox'
 import { Study } from './components/Study'
 import { Trainer } from './components/Trainer'
 import { Insights } from './components/Insights'
-import { PushToggle } from './components/PushToggle'
-import { ThemeToggle } from './components/ThemeToggle'
+import { Money, type NewSub } from './components/Money'
+import { Settings } from './components/Settings'
 import { Icons } from './components/icons'
-import { CalendarLink } from './components/CalendarLink'
 import { PullToRefresh, Skeleton, TabBar, Title, Toaster } from './components/native'
 import { scrollToTop, toast, transition } from './lib/ux'
 import type { NewRequest } from './components/AskClaude'
 
-export type Tab = 'today' | 'funnel' | 'inbox' | 'study' | 'more'
-export type Go = (t: Tab, o?: { vacancy?: string; ftab?: FunnelTab; cards?: boolean }) => void
+/** Пять вкладок внизу; «Цифры» и «Настройки» открываются поверх вкладки и возвращают назад (как экран внутри навигации iOS). */
+export type Tab = 'today' | 'funnel' | 'inbox' | 'study' | 'money'
+export type Screen = 'insights' | 'settings'
+export interface GoOpts { vacancy?: string; ftab?: FunnelTab; cards?: boolean; sub?: string; work?: string }
+export type Go = (to: Tab | Screen, o?: GoOpts) => void
 const TABS: { id: Tab; label: string }[] = [
   { id: 'today', label: 'Сегодня' }, { id: 'funnel', label: 'Воронка' }, { id: 'inbox', label: 'Письма' },
-  { id: 'study', label: 'Учёба' }, { id: 'more', label: 'Ещё' },
+  { id: 'study', label: 'Учёба' }, { id: 'money', label: 'Деньги' },
 ]
-/** Старые адреса вкладок (закладки, пуши): #train и #stats. */
-const LEGACY: Record<string, Tab> = { train: 'study', stats: 'more' }
+const SCREENS: Screen[] = ['insights', 'settings']
+/** Старые адреса (закладки, пуши): #train открывал карточки, #stats и #more были страницей «Ещё». */
+const LEGACY: Record<string, { tab?: Tab; screen?: Screen }> = { train: { tab: 'study' }, stats: { screen: 'insights' }, more: { screen: 'settings' } }
 
 /** Демо только в dev-сборке: снимок данных из public/demo.json (файл в .gitignore), без входа. */
 const DEMO = import.meta.env.DEV && new URLSearchParams(location.search).has('demo')
 
-function hashTab(): Tab | null {
+function parseHash(): { tab?: Tab; screen?: Screen } | null {
   const h = location.hash.slice(1)
-  if (TABS.some(t => t.id === h)) return h as Tab
+  if (TABS.some(t => t.id === h)) return { tab: h as Tab }
+  if (SCREENS.includes(h as Screen)) return { screen: h as Screen }
   return LEGACY[h] ?? null
 }
 function initialTab(): Tab {
-  const h = hashTab()
-  if (h) return h
+  const h = parseHash()
+  if (h?.tab) return h.tab
   try { const s = localStorage.getItem('pult-tab') as Tab | null; if (s && TABS.some(t => t.id === s)) return s } catch { /* пусто */ }
   return 'today'
 }
@@ -76,33 +81,6 @@ function Login() {
   )
 }
 
-/** Пароль для входа на устройствах, где ссылка из письма не подходит (приложение на iPhone). */
-function PasswordBox() {
-  const [pw, setPw] = useState('')
-  const [pw2, setPw2] = useState('')
-  const [msg, setMsg] = useState('')
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (pw !== pw2) { setMsg('Пароли не совпадают'); return }
-    const { error } = await supabase.auth.updateUser({ password: pw })
-    if (error) setMsg('Не получилось: ' + error.message)
-    else { setMsg('Пароль сохранён. На телефоне войди по почте и этому паролю.'); setPw(''); setPw2('') }
-  }
-  return (
-    <details className="add">
-      <summary>Вход на других устройствах</summary>
-      <form className="form" onSubmit={submit}>
-        <label>Новый пароль<input type="password" required minLength={10} autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} /></label>
-        <label>Ещё раз<input type="password" required minLength={10} autoComplete="new-password" value={pw2} onChange={e => setPw2(e.target.value)} /></label>
-        <div className="full" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="btn" type="submit">Сохранить пароль</button><span className="note">{msg}</span>
-        </div>
-        <p className="note full">Не короче 10 символов. Пароль хранится в Supabase только в виде хэша.</p>
-      </form>
-    </details>
-  )
-}
-
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [authReady, setAuthReady] = useState(false)
@@ -110,25 +88,30 @@ export default function App() {
   const [offline, setOffline] = useState(!navigator.onLine)
   const [error, setError] = useState('')
   const [tab, setTabState] = useState<Tab>(initialTab)
+  const [screen, setScreenState] = useState<Screen | null>(() => parseHash()?.screen ?? null)
   const [openVacancy, setOpenVacancy] = useState<string | null>(() => DEMO ? new URLSearchParams(location.search).get('open') : null)
   const [ftab, setFtab] = useState<FunnelTab | null>(null)
   const [cards, setCards] = useState(location.hash === '#train')
+  const [openSub, setOpenSub] = useState<string | null>(() => DEMO ? new URLSearchParams(location.search).get('sub') : null)
+  const [openWork, setOpenWork] = useState<string | null>(null)
 
-  // Каждая вкладка помнит, где её оставили (как в iOS); переход по ссылке внутри приложения открывает экран сверху.
-  const scrollMemo = useRef<Partial<Record<Tab, number>>>({})
+  // Каждый экран помнит, где его оставили (как в iOS); переход по ссылке внутри приложения открывает экран сверху.
+  const scrollMemo = useRef<Record<string, number>>({})
   const pendingScroll = useRef<number | null>(null)
-  const setTab = (t: Tab, fromTop = false) => {
-    scrollMemo.current[tab] = window.scrollY
-    pendingScroll.current = fromTop ? 0 : (scrollMemo.current[t] ?? 0)
-    setTabState(t)
-    history.replaceState(null, '', '#' + t)
-    try { localStorage.setItem('pult-tab', t) } catch { /* пусто */ }
+  const setView = (nextTab: Tab, nextScreen: Screen | null, fromTop = false) => {
+    scrollMemo.current[screen ?? tab] = window.scrollY
+    const key = nextScreen ?? nextTab
+    pendingScroll.current = fromTop ? 0 : (scrollMemo.current[key] ?? 0)
+    setTabState(nextTab)
+    setScreenState(nextScreen)
+    history.replaceState(null, '', '#' + key)
+    try { localStorage.setItem('pult-tab', nextTab) } catch { /* пусто */ }
   }
   useLayoutEffect(() => {
     if (pendingScroll.current === null) return
     window.scrollTo(0, pendingScroll.current)
     pendingScroll.current = null
-  }, [tab])
+  }, [tab, screen])
   // Первое появление данных: карточки проявляются лесенкой один раз за запуск (класс снимается после анимации).
   const painted = useRef(false)
   useEffect(() => {
@@ -138,21 +121,29 @@ export default function App() {
     r.classList.add('first-paint')
     window.setTimeout(() => r.classList.remove('first-paint'), 800)
   }, [data])
-  const go: Go = (t, o = {}) => {
-    if (t === 'funnel') { setOpenVacancy(o.vacancy ?? null); if (o.ftab) setFtab(o.ftab) }
-    if (t === 'study') setCards(!!o.cards)
-    setTab(t, true)
+  const go: Go = (to, o = {}) => {
+    if (to === 'insights' || to === 'settings') { setView(tab, to, true); return }
+    if (to === 'funnel') { setOpenVacancy(o.vacancy ?? null); if (o.ftab) setFtab(o.ftab) }
+    if (to === 'study') { setCards(!!o.cards); setOpenWork(o.work ?? null) }
+    if (to === 'money') setOpenSub(o.sub ?? null)
+    setView(to, null, true)
   }
-  /** Нажатие на вкладку: чужая открывается там, где её оставили; активная сначала закрывает вложенный экран, потом плавно едет наверх. */
+  /** Нажатие на вкладку: открытый экран закрывается; чужая вкладка открывается там, где её оставили;
+   *  активная сначала закрывает вложенный экран, потом плавно едет наверх. */
   const pressTab = (t: Tab) => {
-    if (t !== tab) { setTab(t); return }
+    if (screen) { transition(() => setView(t, null, false), 'back'); return }
+    if (t !== tab) { setView(t, null); return }
     if (t === 'funnel' && openVacancy) { transition(() => setOpenVacancy(null), 'back'); return }
+    if (t === 'money' && openSub) { transition(() => setOpenSub(null), 'back'); return }
     scrollToTop()
   }
 
   // Переход по #вкладке в адресе (из пуша или закладки) переключает экран без перезагрузки.
   useEffect(() => {
-    const onHash = () => { const h = hashTab(); if (h) setTabState(h) }
+    const onHash = () => {
+      const h = parseHash()
+      if (h?.tab) { setTabState(h.tab); setScreenState(null) } else if (h?.screen) setScreenState(h.screen)
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
@@ -170,7 +161,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (DEMO) { fetch(import.meta.env.BASE_URL + 'demo.json').then(r => r.json()).then(setData); return }
+    if (DEMO) { fetch(import.meta.env.BASE_URL + 'demo.json').then(r => r.json()).then(d => setData({ requests: [], subscriptions: [], moneyReady: true, ...d })); return }
     if (!session) return
     refresh()
     const onVis = () => { if (document.visibilityState === 'visible') refresh() }
@@ -205,15 +196,17 @@ export default function App() {
   const runAgeH = runAt && data ? (Date.parse(data.loadedAt) - Date.parse(runAt)) / 36e5 : null
   const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })
   const loaded = data ? hhmm(data.loadedAt) : ''
+  // Почту и hh разбирает один прогон в сутки, поэтому «давно» начинается с 30 часов, а не с 12.
   const status = offline
     ? { text: `офлайн, данные на ${loaded}`, cls: 'off' }
     : runAt
-      ? { text: `агент обновил ${runAt.slice(0, 10) === t ? 'в' : fmtDate(runAt.slice(0, 10)) + ','} ${hhmm(runAt)}`, cls: runAgeH !== null && runAgeH > 12 ? 'warn' : 'muted' }
+      ? { text: `агент обновил ${runAt.slice(0, 10) === t ? 'в' : fmtDate(runAt.slice(0, 10)) + ','} ${hhmm(runAt)}`, cls: runAgeH !== null && runAgeH > 30 ? 'warn' : 'muted' }
       : { text: loaded ? `данные на ${loaded}` : 'загрузка', cls: 'muted' }
 
-  const badges: Partial<Record<Tab, { n: number; hot: boolean }>> = data ? {
-    inbox: { n: data.messages.filter(m => !m.is_done && ['invite', 'test', 'offer', 'question'].includes(m.kind)).length, hot: true },
-    study: { n: data.works.filter(w => w.status !== 'submitted' && w.deadline && days(t, w.deadline) <= 3).length, hot: data.works.some(w => w.status !== 'submitted' && !!w.deadline && days(t, w.deadline) < 0) },
+  const badges: Partial<Record<Tab, number>> = data ? {
+    inbox: data.messages.filter(m => !m.is_done && ['invite', 'test', 'offer', 'question'].includes(m.kind)).length,
+    study: data.works.filter(w => w.status !== 'submitted' && w.deadline && days(t, w.deadline) <= 3).length,
+    money: upcoming(data.subscriptions, t, 3).length,
   } : {}
 
   const onStatus = (v: Vacancy, s: VacancyStatus) => act(() => update('vacancy', v.id, statusPatch(v, s, t)))
@@ -234,48 +227,45 @@ export default function App() {
     await update('flashcard', c.id, next)
     await insert('card_review', { flashcard_id: c.id, knew, box_before: c.box, box_after: next.box })
   })
+  const onAddSub = (s: NewSub) => act(() => insert('subscription', { ...s }))
+  const onUpdateSub = (id: string, patch: Record<string, unknown>) => act(() => update('subscription', id, patch))
 
   const dueCards = data ? data.cards.filter(c => c.due_on <= t).length : 0
-  const topActions = <><ThemeToggle /><PushToggle /></>
+  const backLabel = TABS.find(x => x.id === tab)!.label
+  const closeScreen = () => transition(() => setView(tab, null), 'back')
 
   return (
     <div className="wrap">
       {error && <div className="banner" role="alert">Ошибка: {error} <button className="linkbtn" onClick={() => setError('')}>скрыть</button></div>}
 
-      {!data ? <Skeleton /> : <>
-        {tab === 'today' && <Today data={data} canWrite={canWrite} goto={go} status={status} actions={topActions}
-          onTaskDone={(id, done) => act(() => update('task', id, { is_done: done })).then(() => { if (done) toast({ text: 'Дело закрыто', action: { label: 'Вернуть', run: () => { act(() => update('task', id, { is_done: false })) } } }) })}
-          onAddTask={row => act(() => insert('task', { ...row, created_by: 'owner' }))} onAsk={onAsk} />}
-        {tab === 'funnel' && <Funnel data={data} canWrite={canWrite} open={openVacancy} setOpen={setOpenVacancy} tab={ftab} setTab={setFtab}
-          onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAdd={onAddVacancy} onAsk={onAsk} onTrain={() => go('study', { cards: true })} />}
-        {tab === 'inbox' && <Inbox data={data} canWrite={canWrite} onDone={(id, done) => act(() => update('message', id, { is_done: done })).then(() => { if (done) toast({ text: 'Письмо разобрано', action: { label: 'Вернуть', run: () => { act(() => update('message', id, { is_done: false })) } } }) })} />}
-        {tab === 'study' && <section className="scr">
-          <Title title="Учёба" />
-          <div className="seg">
-            <button className="chip" aria-pressed={!cards} onClick={() => setCards(false)}>Работы</button>
-            <button className="chip" aria-pressed={cards} onClick={() => setCards(true)}>Карточки{dueCards ? ' ' + dueCards : ''}</button>
-          </div>
-          {cards ? <Trainer data={data} canWrite={canWrite} onGrade={onGrade} /> : <Study data={data} canWrite={canWrite}
-            onStatus={(id, s) => act(() => update('study_work', id, { status: s, updated_by: 'owner' }))}
-            onAdd={w => act(async () => {
-              const discipline_id = await ensureByName('discipline', w.discipline.trim())
-              await insert('study_work', { discipline_id, code: slug('w'), title: w.title.trim(), status: w.status, deadline: w.deadline || null })
-            })} />}
-        </section>}
-        {tab === 'more' && <section className="scr">
-          <Title title="Ещё" sub={'Цифры поиска работы · ' + status.text} />
-          <Insights data={data} />
-          <div className="sec-head" style={{ marginTop: 8 }}><h2>Настройки</h2></div>
-          <CalendarLink />
-          <PasswordBox />
-          <button className="btn ghost" style={{ justifySelf: 'start', display: 'inline-flex', gap: 8, alignItems: 'center' }} onClick={() => { clearCache(); supabase.auth.signOut() }}>
-            <span style={{ width: 18, height: 18, display: 'inline-grid' }}>{Icons.logout}</span>Выйти</button>
-          <p className="foot-note">Данные приносит Claude: почта и hh.ru в 9:00, 14:00 и 20:00. Статусы и отметки можно менять здесь.</p>
-        </section>}
-      </>}
+      {!data ? <Skeleton /> : screen === 'insights' ? <Insights data={data} backLabel={backLabel} onBack={closeScreen} goto={go} />
+        : screen === 'settings' ? <Settings data={data} backLabel={backLabel} onBack={closeScreen} onLogout={() => { clearCache(); supabase.auth.signOut() }} />
+        : <>
+          {tab === 'today' && <Today data={data} canWrite={canWrite} goto={go} status={status}
+            onTaskDone={(id, done) => act(() => update('task', id, { is_done: done })).then(() => { if (done) toast({ text: 'Дело закрыто', action: { label: 'Вернуть', run: () => { act(() => update('task', id, { is_done: false })) } } }) })}
+            onAddTask={row => act(() => insert('task', { ...row, created_by: 'owner' }))} onAsk={onAsk} />}
+          {tab === 'funnel' && <Funnel data={data} canWrite={canWrite} open={openVacancy} setOpen={setOpenVacancy} tab={ftab} setTab={setFtab}
+            onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAdd={onAddVacancy} onAsk={onAsk} onTrain={() => go('study', { cards: true })} onNumbers={() => go('insights')} />}
+          {tab === 'inbox' && <Inbox data={data} canWrite={canWrite} onOpen={id => go('funnel', { vacancy: id })}
+            onDone={(id, done) => act(() => update('message', id, { is_done: done })).then(() => { if (done) toast({ text: 'Письмо разобрано', action: { label: 'Вернуть', run: () => { act(() => update('message', id, { is_done: false })) } } }) })} />}
+          {tab === 'study' && <section className="scr">
+            <Title title="Учёба" />
+            <div className="seg">
+              <button className="chip" aria-pressed={!cards} onClick={() => setCards(false)}>Работы</button>
+              <button className="chip" aria-pressed={cards} onClick={() => setCards(true)}>Карточки{dueCards ? ' ' + dueCards : ''}</button>
+            </div>
+            {cards ? <Trainer data={data} canWrite={canWrite} onGrade={onGrade} /> : <Study data={data} canWrite={canWrite} focus={openWork}
+              onStatus={(id, s) => act(() => update('study_work', id, { status: s, updated_by: 'owner' }))}
+              onSave={(id, patch) => act(() => update('study_work', id, { ...patch, updated_by: 'owner' }))}
+              onAdd={w => act(async () => {
+                const discipline_id = await ensureByName('discipline', w.discipline.trim())
+                await insert('study_work', { discipline_id, code: slug('w'), title: w.title.trim(), status: w.status, deadline: w.deadline || null })
+              })} />}
+          </section>}
+          {tab === 'money' && <Money data={data} canWrite={canWrite} open={openSub} setOpen={setOpenSub} onAdd={onAddSub} onUpdate={onUpdateSub} onAsk={onAsk} />}
+        </>}
 
-      <TabBar items={TABS.map(x => ({ ...x, icon: Icons[x.id] }))} value={tab} onPick={pressTab}
-        badges={Object.fromEntries(Object.entries(badges).map(([k, b]) => [k, b?.n ?? 0]))} />
+      <TabBar items={TABS.map(x => ({ ...x, icon: Icons[x.id] }))} value={tab} onPick={pressTab} badges={badges} />
       <Toaster />
       <PullToRefresh refresh={refresh} />
 

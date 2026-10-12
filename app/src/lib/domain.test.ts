@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, days, today } from './dates'
-import { agenda, followUps, funnelTab, grade, nextStep, stageOf, statusPatch } from './domain'
+import { agenda, followUps, funnelTab, grade, groupWorks, nextStep, stageOf, staleCount, statusPatch, waitGroup } from './domain'
 import { lessonsFor, nextStudyDay, parseCell, weekInfo, type SchedulePayload } from './schedule'
-import type { PultData, Vacancy } from './types'
+import type { PultData, StudyWork, Subscription, Vacancy } from './types'
 
 const d = (s: string) => { const [y, m, dd] = s.split('-').map(Number); return new Date(y, m - 1, dd) }
 
@@ -68,7 +68,7 @@ const vacancy = (p: Partial<Vacancy>): Vacancy => ({
   applied_on: '2026-09-20', deadline: null, followed_up_on: null, next_step: null, prep: null, notes: null,
   updated_at: '', company: { name: 'Компания N' }, ...p,
 })
-const data = (p: Partial<PultData>): PultData => ({ vacancies: [], messages: [], works: [], tasks: [], cards: [], schedule: null, lastRun: null, requests: [], loadedAt: '', ...p })
+const data = (p: Partial<PultData>): PultData => ({ vacancies: [], messages: [], works: [], tasks: [], cards: [], schedule: null, lastRun: null, requests: [], subscriptions: [], moneyReady: true, loadedAt: '', ...p })
 
 describe('напомнить о себе', () => {
   it('7+ дней без ответа попадает, свежий отклик нет', () => {
@@ -149,5 +149,49 @@ describe('дизайн v4: вкладки и этапы воронки', () => {
     const b = vacancy({ id: 'b', status: 'offer', applied_on: '2026-09-20' })
     expect(nextStep({ vacancies: [a, b], messages: [] }, t)?.v.id).toBe('b')
     expect(nextStep({ vacancies: [vacancy({ status: 'applied', applied_on: t })], messages: [] }, t)).toBeNull()
+  })
+})
+
+describe('экран «Сегодня»: что в повестке, а что сводной строкой', () => {
+  const t = '2026-10-12'
+  const sub: Subscription = {
+    id: 's1', external_id: null, name: 'iCloud+', amount: 299, currency: 'RUB', status: 'active', category: 'cloud', method: null, url: null,
+    notes: null, remind_days: 1, updated_by: 'owner', next_charge_on: '2026-10-14', unit: 'month', every: 1,
+  }
+  it('отклики без ответа не попадают в повестку, их считает staleCount', () => {
+    const d = data({ vacancies: [vacancy({}), vacancy({ id: 'v2' })] })
+    expect(agenda(d, t)).toHaveLength(0)
+    expect(staleCount(d, t)).toBe(2)
+  })
+  it('списание подписки идёт в повестку с переходом на «Деньги»', () => {
+    const r = agenda(data({ subscriptions: [sub, { ...sub, id: 's2', status: 'paused' }] }), t)
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatchObject({ date: '2026-10-14', kind: 'money', goto: 'money', ref: 's1' })
+    expect(r[0].title.replace(/\s/g, ' ')).toBe('Списание: iCloud+, 299 ₽')
+  })
+  it('дело «Продление iCloud+» в день списания не дублирует строку подписки', () => {
+    const task = { id: 'k', title: 'Продление iCloud+ 200 ГБ (Apple)', due_date: '2026-10-14', due_time: null, kind: 'money' as const, is_done: false, notes: null }
+    const r = agenda(data({ tasks: [task, { ...task, id: 'k2', due_date: '2026-10-20' }, { ...task, id: 'k3', kind: 'life' as const }], subscriptions: [sub] }), t)
+    expect(r.map(x => x.taskId ?? x.ref)).toEqual(['k3', 's1', 'k2'])
+  })
+  it('внутри «Ждём»: пора напомнить, ждём ответа, резерв', () => {
+    expect(waitGroup(vacancy({ applied_on: '2026-09-20' }), [], t)).toBe('stale')
+    expect(waitGroup(vacancy({ applied_on: '2026-10-10' }), [], t)).toBe('fresh')
+    expect(waitGroup(vacancy({ status: 'reserve' }), [], t)).toBe('reserve')
+    expect(waitGroup(vacancy({ applied_on: '2026-09-20', followed_up_on: '2026-10-10' }), [], t)).toBe('fresh')
+  })
+})
+
+describe('учёба: группы по срочности', () => {
+  const t = '2026-10-12'
+  const work = (p: Partial<StudyWork>): StudyWork => ({ id: 'w', code: 'w', title: 'ЛР', status: 'todo', deadline: null, notes: null, local_path: null, updated_at: '2026-10-01', discipline: { name: 'Предмет', teacher: null }, ...p })
+  it('срочно: просрочено и до 3 дней; сданные отдельно; остальное в работе', () => {
+    const g = groupWorks([
+      work({ id: 'a', deadline: '2026-10-10' }), work({ id: 'b', deadline: '2026-10-15' }), work({ id: 'c', deadline: '2026-10-16' }),
+      work({ id: 'd', status: 'doing' }), work({ id: 'e', status: 'submitted', deadline: '2026-10-01' }),
+    ], t)
+    expect(g.urgent.map(x => x.id)).toEqual(['a', 'b'])
+    expect(g.work.map(x => x.id)).toEqual(['d', 'c'])
+    expect(g.done.map(x => x.id)).toEqual(['e'])
   })
 })

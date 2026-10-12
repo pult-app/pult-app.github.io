@@ -14,4 +14,9 @@ export const Icons = {
   back: <svg viewBox="0 0 24 24" {...P} strokeWidth={2}><path d="M15 6l-6 6 6 6" /></svg>,
   check: <svg viewBox="0 0 24 24" {...P} strokeWidth={2.6}><path d="M5 12l5 5 9-10" /></svg>,
   external: <svg viewBox="0 0 24 24" {...P} strokeWidth={2}><path d="M7 17L17 7" /><path d="M8 7h9v9" /></svg>,
+  chev: <svg viewBox="0 0 24 24" {...P} strokeWidth={2}><path d="M9 6l6 6-6 6" /></svg>,
+  plus: <svg viewBox="0 0 24 24" {...P} strokeWidth={2}><path d="M12 5v14M5 12h14" /></svg>,
+  money: <svg viewBox="0 0 24 24" {...P}><rect x="3" y="6" width="18" height="13" rx="2.5" /><path d="M3 10.5h18" /><path d="M7 15.5h3" /></svg>,
+  settings: <svg viewBox="0 0 24 24" {...P}><path d="M4 7h9M19 7h1M4 17h1M11 17h9" /><circle cx="16" cy="7" r="2.4" /><circle cx="8" cy="17" r="2.4" /></svg>,
+  chart: <svg viewBox="0 0 24 24" {...P}><path d="M5 20V11M11 20V5M17 20v-6" /><path d="M3 20h18" /></svg>,
 }
