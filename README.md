@@ -39,7 +39,7 @@ psql -d pult -f docs/03-data/tests/20_owner_flow.sql
 psql -d pult -f docs/03-data/tests/30_subscriptions.sql
 ```
 
-Модульные тесты приложения и контракта API: `cd app && npx vitest run` (75 тестов, в том числе сверка арифметики дат списаний между TypeScript и Edge Function).
+Модульные тесты приложения и контракта API: `cd app && npx vitest run` (78 тестов, в том числе сверка арифметики дат списаний между TypeScript и Edge Function).
 
 ## Авторство
 
