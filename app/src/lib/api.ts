@@ -9,6 +9,12 @@ export const supabase = createClient(url ?? 'http://localhost', key ?? 'missing'
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 })
 
+/** Был ли вход на этом устройстве: supabase-js хранит сессию в localStorage под ключом sb-<проект>-auth-token.
+ *  Проверка без сети, чтобы показать кэш сразу, пока токен обновляется (US-16). */
+export function hasStoredSession(): boolean {
+  try { return Object.keys(localStorage).some(k => /^sb-.+-auth-token$/.test(k)) } catch { return false }
+}
+
 const CACHE = 'pult-cache-v1'
 
 export function readCache(): PultData | null {

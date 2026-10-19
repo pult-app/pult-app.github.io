@@ -15,7 +15,8 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'] },
+      // Шрифты в кэше сразу, кроме латиницы с диакритикой для заголовков (118 КБ, подгрузится, только если встретится).
+      injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2}'], globIgnores: ['**/unbounded-latin-ext-*.woff2'] },
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Пульт Германа',

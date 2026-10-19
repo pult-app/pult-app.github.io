@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { clearCache, configured, ensureByName, insert, loadAll, readCache, slug, supabase, update } from './lib/api'
+import { clearCache, configured, ensureByName, hasStoredSession, insert, loadAll, readCache, slug, supabase, update } from './lib/api'
 import { days, fmtDate, today } from './lib/dates'
 import { grade, statusPatch, type FunnelTab } from './lib/domain'
 import { upcoming } from './lib/billing'
@@ -84,6 +84,8 @@ function Login() {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [authReady, setAuthReady] = useState(false)
+  // Вход уже был: экран из кэша рисуется сразу, не дожидаясь, пока Supabase обновит просроченный токен по сети.
+  const [storedSession] = useState(() => !DEMO && hasStoredSession())
   const [data, setData] = useState<PultData | null>(() => DEMO ? null : readCache())
   const [offline, setOffline] = useState(!navigator.onLine)
   const [error, setError] = useState('')
@@ -191,8 +193,9 @@ export default function App() {
   }
 
   if (!configured) return <div className="wrap"><p className="banner">Не заданы VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.</p></div>
-  if (!authReady && !DEMO) return null
-  if (!session && !DEMO) return <div className="wrap"><Login /></div>
+  const signedIn = DEMO || !!session || (!authReady && storedSession)
+  if (!authReady && !signedIn) return null
+  if (!signedIn) return <div className="wrap"><Login /></div>
 
   const canWrite = !offline
   const t = today()
