@@ -85,12 +85,12 @@ function Automation({ data }: { data: PultData }) {
   const oldest = queued.length ? Math.min(...queued.map(r => Date.parse(r.created_at))) : null
   const waitH = oldest ? Math.round((Date.parse(data.loadedAt) - oldest) / 36e5) : 0
   const queueText = queued.length
-    ? `В очереди ${queued.length}, старейший ждёт ${waitH < 1 ? 'меньше часа' : waitH < 48 ? waitH + ' ч' : Math.round(waitH / 24) + ' дн.'}${waitH >= 3 ? ': задача pult-ask-claude на ПК сейчас не запущена' : ''}`
+    ? `В очереди ${queued.length}, старейший ждёт ${waitH < 1 ? 'меньше часа' : waitH < 48 ? waitH + ' ч' : Math.round(waitH / 24) + ' дн.'}${waitH >= 3 ? ': обработчик агента сейчас не запущен' : ''}`
     : 'Очередь пуста'
   return (
     <div className="rows">
-      <ListRow lead="9:05" title="Почта и hh.ru" sub={'Задача funnel-sync в Claude на ПК, каждый день. ' + (runAt ? 'Последний прогон: ' + (runAt.slice(0, 10) === data.loadedAt.slice(0, 10) ? 'сегодня' : fmtDate(runAt.slice(0, 10))) + ' в ' + hhmm(runAt) + (run!.status === 'success' ? '' : ', ' + (run!.status === 'partial' ? 'частично' : run!.status === 'failed' ? 'с ошибкой' : 'идёт')) : 'прогонов ещё не было')} />
-      <ListRow lead="·" title="Ответы на «Спросить Claude»" sub={'Разбирает задача pult-ask-claude на ПК. ' + queueText} leadTone={waitH >= 3 ? 'warn' : undefined} />
+      <ListRow lead="9:05" title="Почта и hh.ru" sub={'Ежедневная задача агента. ' + (runAt ? 'Последний прогон: ' + (runAt.slice(0, 10) === data.loadedAt.slice(0, 10) ? 'сегодня' : fmtDate(runAt.slice(0, 10))) + ' в ' + hhmm(runAt) + (run!.status === 'success' ? '' : ', ' + (run!.status === 'partial' ? 'частично' : run!.status === 'failed' ? 'с ошибкой' : 'идёт')) : 'прогонов ещё не было')} />
+      <ListRow lead="·" title="Ответы на запросы" sub={'Разбирает агентская очередь. ' + queueText} leadTone={waitH >= 3 ? 'warn' : undefined} />
       <ListRow lead="6:05" title="Расписание пар" sub="Сервер забирает его из ВлГУ каждый день" />
       <ListRow lead="8:00" title="Утренняя сводка" sub="Пуш: пары, что горит, письма, карточки" />
       <ListRow lead="9:00" title="Списания подписок" sub="Пуш за сколько-то дней до платежа, срок задаётся у каждой подписки" />
@@ -100,11 +100,25 @@ function Automation({ data }: { data: PultData }) {
   )
 }
 
+/** Публичное состояние контура Hermes. Здесь нет адресов, токенов и содержимого писем. */
+function HermesAgent() {
+  return (
+    <div className="rows">
+      <ListRow lead="●" leadTone="ok" title="Герыч в облаке" sub="Telegram подключён, личные команды принимает только от владельца" />
+      <ListRow lead="●" leadTone="ok" title="Gmail" sub="Только чтение: отправка, изменение и удаление писем запрещены" />
+      <ListRow lead="●" leadTone="ok" title="GermanHUB" sub="Приватная копия только для чтения, обновляется безопасным pull без push" />
+      <ListRow lead="◌" leadTone="warn" title="Запись в Пульт" sub="Будет включена после отдельного agent token с минимальными правами" />
+      <ListRow lead="✓" title="Экономный режим" sub="Рутина идёт на дешёвой модели, сильная модель и critic включаются только для важных задач" />
+    </div>
+  )
+}
+
 export function Settings({ data, backLabel, onBack, onLogout }: { data: PultData; backLabel: string; onBack: () => void; onLogout: () => void }) {
   return (
     <section className="scr">
       <Title title="Настройки" back={{ label: backLabel, onClick: onBack }} />
       <div className="rows"><ThemeRow /><PushRow /></div>
+      <Fold id="set-hermes" title="Герыч" meta="облачный агент и доступы" defaultOpen><HermesAgent /></Fold>
       <Fold id="set-auto" title="Автоматика" meta="что и когда делает пульт" defaultOpen={false}><Automation data={data} /></Fold>
       <Fold id="set-cal" title="Календарь и ярлык iPhone" defaultOpen={false}><CalendarLink /></Fold>
       <Fold id="set-pass" title="Вход на других устройствах" defaultOpen={false}><PasswordBox /></Fold>
