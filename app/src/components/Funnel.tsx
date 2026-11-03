@@ -3,7 +3,6 @@ import { days, fmtDate, today } from '../lib/dates'
 import { companyName, daysWord, FUNNEL_TABS, funnelTab, KINDS, messagesFor, stageOf, STATUSES, vacancyState, waitGroup, type FunnelTab, type StateView } from '../lib/domain'
 import type { PultData, Vacancy, VacancyStatus } from '../lib/types'
 import { Empty, PillSelect } from './ui'
-import { AskBox, RequestList, type NewRequest } from './AskClaude'
 import { Avatar, Fold, ListRow } from './kit'
 import { Icons } from './icons'
 import { Title } from './native'
@@ -22,7 +21,6 @@ interface Props {
   onSave: (id: string, patch: Partial<Vacancy>) => Promise<void>
   onFollowed: (id: string) => Promise<void>
   onAdd: (v: NewVacancy) => Promise<void>
-  onAsk: (r: NewRequest) => Promise<void>
   onTrain: () => void
   onNumbers: () => void
 }
@@ -93,7 +91,7 @@ function InterviewPrep({ v, data, onTrain }: { v: Vacancy; data: PultData; onTra
 }
 
 /** Отдельный экран вакансии (дизайн v4, редизайн 12.10: блоки сворачиваются, повторов нет). */
-function VacancyScreen({ v, data, canWrite, onBack, onStatus, onSave, onFollowed, onAsk, onTrain }: { v: Vacancy; data: PultData; canWrite: boolean; onBack: () => void } & Pick<Props, 'onStatus' | 'onSave' | 'onFollowed' | 'onAsk' | 'onTrain'>) {
+function VacancyScreen({ v, data, canWrite, onBack, onStatus, onSave, onFollowed, onTrain }: { v: Vacancy; data: PultData; canWrite: boolean; onBack: () => void } & Pick<Props, 'onStatus' | 'onSave' | 'onFollowed' | 'onTrain'>) {
   const t = today()
   const st = vacancyState(v, data.messages, t)
   const co = companyName(v)
@@ -104,12 +102,10 @@ function VacancyScreen({ v, data, canWrite, onBack, onStatus, onSave, onFollowed
   const [deadline, setDeadline] = useState(v.deadline ?? '')
   const [msg, setMsg] = useState('')
   const ms = messagesFor(data.messages, v.id)
-  const reqs = data.requests.filter(r => r.vacancy_id === v.id)
   const save = async () => {
     try { await onSave(v.id, { next_step: next.trim() || null, prep: prep.trim() || null, notes: notes.trim() || null, deadline: deadline || null }); setMsg(''); toast('Сохранено') }
     catch { setMsg('Не сохранилось') }
   }
-  const askMeta = reqs.some(r => r.status === 'queued' || r.status === 'working') ? 'в работе' : reqs.some(r => r.status === 'done') ? 'есть ответ' : ''
   return (
     <section className="scr">
       <Title title={co} back={{ label: 'Воронка', onClick: onBack }}
@@ -123,12 +119,6 @@ function VacancyScreen({ v, data, canWrite, onBack, onStatus, onSave, onFollowed
         {canWrite && st.hint === 'Напомни о себе HR' && <button className="btn ghost" onClick={() => onFollowed(v.id)}>Я напомнил HR</button>}
       </div>
       <Prep text={v.prep} />
-      {canWrite && (
-        <Fold id="v-ask" title="Спросить Claude" meta={askMeta}>
-          <AskBox v={v} company={co} canWrite={canWrite} onAsk={onAsk} />
-          <RequestList items={reqs} />
-        </Fold>)}
-      {!canWrite && reqs.length > 0 && <Fold id="v-ask" title="Ответы Claude" meta={askMeta}><RequestList items={reqs} /></Fold>}
       {ms.length > 0 && (
         <Fold id="v-mail" title="Переписка" meta={ms.length}>
           <div className="timeline">
@@ -166,7 +156,7 @@ export function Funnel(p: Props) {
 
   const openV = open ? data.vacancies.find(v => v.id === open) : null
   if (openV) return <VacancyScreen key={openV.id} v={openV} data={data} canWrite={canWrite} onBack={() => transition(() => setOpen(null), 'back')}
-    onStatus={p.onStatus} onSave={p.onSave} onFollowed={p.onFollowed} onAsk={p.onAsk} onTrain={p.onTrain} />
+    onStatus={p.onStatus} onSave={p.onSave} onFollowed={p.onFollowed} onTrain={p.onTrain} />
 
   const all = data.vacancies.map(v => ({ v, st: vacancyState(v, data.messages, t), tab: funnelTab(v) }))
   const count = (x: FunnelTab) => all.filter(a => a.tab === x).length

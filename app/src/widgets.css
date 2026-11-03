@@ -1,0 +1,1058 @@
+/* Пульт — Виджеты дашборда: типографика, иерархия, движение (02.11.2026).
+   Правило: сначала читаемость, потом красота. Крупные числа, чёткие подписи,
+   движение только по transform и opacity. */
+
+/* ---------- Оболочка виджета ---------- */
+.widget {
+  display: grid;
+  gap: 14px;
+  padding: 20px 22px 22px;
+  /* overflow не режем: внутри колонок это обрезало содержимое карточки */
+  overflow: visible;
+}
+
+/* ---------- Заголовок: надзаголовок капслоком ---------- */
+.widget-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+}
+
+.widget-head::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--amber);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--amber) 18%, transparent);
+}
+
+.widget-head h3 {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0;
+  color: var(--muted);
+}
+
+.widget-head .meta {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.widget-empty {
+  padding: 20px 0 6px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ---------- Hero: главная карточка ---------- */
+.widget-hero {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 26px 28px 26px;
+  border-radius: 24px;
+  overflow: hidden;
+  color: #F5F2ED;
+  background:
+    radial-gradient(120% 140% at 8% 0%, rgba(224, 115, 26, 0.30), transparent 55%),
+    linear-gradient(150deg, #201C18 0%, #14120F 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.10),
+    0 18px 48px -20px rgba(25, 21, 18, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+
+[data-theme="dark"] .widget-hero {
+  background:
+    radial-gradient(120% 140% at 8% 0%, rgba(255, 154, 61, 0.26), transparent 55%),
+    linear-gradient(150deg, #1A1B20 0%, #101116 100%);
+}
+
+/* Тонкая сетка-скан прибора */
+.widget-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 100% 7px;
+}
+
+.widget-hero > * {
+  position: relative;
+}
+
+.widget-hero .kicker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(245, 242, 237, 0.62);
+}
+
+.widget-hero .kicker i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #FF9A3D;
+  box-shadow: 0 0 10px rgba(255, 154, 61, 0.9), 0 0 0 4px rgba(255, 154, 61, 0.16);
+}
+
+.widget-hero .kicker i.calm {
+  background: rgba(245, 242, 237, 0.45);
+  box-shadow: 0 0 0 4px rgba(245, 242, 237, 0.08);
+}
+
+.widget-hero .title {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 27px;
+  line-height: 1.14;
+  letter-spacing: -0.028em;
+  text-wrap: balance;
+}
+
+.widget-hero .text {
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(245, 242, 237, 0.68);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.widget-hero .acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+  align-items: center;
+}
+
+/* Кнопка: таблетка, при нажатии вдавливается */
+.widget-hero .hbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 23px;
+  background: #FF9A3D;
+  color: #1A0E03;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 26px -10px rgba(255, 154, 61, 0.7);
+  transition: transform var(--dur-press) var(--ease-out), box-shadow var(--dur-ui) var(--ease-out), filter var(--dur-ui) var(--ease-out);
+}
+
+/* Круг с иконкой внутри кнопки */
+.widget-hero .hbtn .bicon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-right: -6px;
+  border-radius: 50%;
+  background: rgba(26, 14, 3, 0.14);
+  transition: transform var(--dur-ui) var(--ease-out);
+}
+
+.widget-hero .hbtn .bicon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.widget-hero .hbtn.ghost {
+  background: rgba(255, 255, 255, 0.10);
+  color: #F5F2ED;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.widget-hero .hbtn:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .widget-hero .hbtn:hover {
+    filter: brightness(1.06);
+  }
+
+  .widget-hero .hbtn:hover .bicon {
+    transform: translate3d(2px, -2px, 0) scale(1.08);
+  }
+}
+
+/* ---------- Пульс: крупные числа ---------- */
+.widget-pulse {
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.widget-pulse .ptile {
+  display: grid;
+  align-content: space-between;
+  justify-items: start;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 16px;
+  text-align: left;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--card-solid) 55%, transparent);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: transform var(--dur-ui) var(--ease-out), box-shadow var(--dur-ui) var(--ease-out);
+}
+
+.widget-pulse .ptile b {
+  font-family: var(--f-display);
+  font-size: 27px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+.widget-pulse .ptile b em {
+  font-style: normal;
+  font-size: 0.6em;
+  font-weight: 500;
+  opacity: 0.55;
+  margin-left: 2px;
+}
+
+.widget-pulse .ptile span {
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.widget-pulse .ptile:active {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .widget-pulse .ptile:hover {
+    transform: translate3d(0, -2px, 0);
+    box-shadow: inset 0 0 0 1px var(--line-strong), 0 8px 20px -12px rgba(25, 21, 18, 0.3);
+  }
+}
+
+/* ---------- Пары ---------- */
+.widget-lessons {
+  display: grid;
+  gap: 0;
+  padding: 0;
+}
+
+.widget-lessons .lrow {
+  display: flex;
+  gap: 14px;
+  padding: 11px 0;
+}
+
+.widget-lessons .lrow + .lrow {
+  border-top: 1px solid var(--line);
+}
+
+.widget-lessons .ltime {
+  width: 52px;
+  flex-shrink: 0;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.widget-lessons .ltime b {
+  display: block;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 14.5px;
+}
+
+.widget-lessons .lsubj {
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.widget-lessons .ldetail {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.widget-lessons .lrow.past {
+  opacity: 0.42;
+}
+
+.widget-lessons .lrow.now {
+  margin: 0 -12px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--amber) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 26%, transparent);
+}
+
+.widget-lessons .lrow.now .ltime b {
+  color: var(--amber);
+}
+
+/* ---------- Строки ---------- */
+.widget-rows {
+  display: grid;
+  gap: 0;
+}
+
+.widget-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 46px;
+  margin: 0 -12px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background var(--dur-ui) var(--ease-out), transform var(--dur-ui) var(--ease-out);
+}
+
+.widget-row + .widget-row::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  background: var(--line);
+}
+
+.widget-row .wlead {
+  width: 54px;
+  flex-shrink: 0;
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+
+.widget-row .wlead.hot {
+  color: #C0331F;
+}
+
+.widget-row .wlead.warn {
+  color: #A8510A;
+}
+
+[data-theme="dark"] .widget-row .wlead.hot {
+  color: #FF8A7A;
+}
+
+[data-theme="dark"] .widget-row .wlead.warn {
+  color: #FFB877;
+}
+
+.widget-row .wbody {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.widget-row .wtitle {
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.widget-row .wsub {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.widget-row .wtag {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.widget-row .wtag.action {
+  background: color-mix(in srgb, var(--amber) 18%, transparent);
+  color: #8A4207;
+}
+
+.widget-row .wtag.win {
+  background: color-mix(in srgb, #2E8B57 18%, transparent);
+  color: #155C33;
+}
+
+.widget-row .wtag.wait {
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  color: var(--ink-soft);
+}
+
+[data-theme="dark"] .widget-row .wtag.action {
+  color: #FFB877;
+}
+
+[data-theme="dark"] .widget-row .wtag.win {
+  color: #8ED9AA;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .widget-row:hover {
+    background: color-mix(in srgb, var(--amber) 7%, transparent);
+  }
+
+  .widget-row:hover .wtitle {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.widget-row:active {
+  transform: scale(0.995);
+}
+
+/* ---------- Воронка ---------- */
+.widget-stagebar {
+  display: flex;
+  gap: 4px;
+  height: 12px;
+}
+
+.widget-stagebar i {
+  display: block;
+  border-radius: 3px;
+  min-width: 4px;
+}
+
+.widget-stagebar i.c-sel {
+  background: linear-gradient(180deg, #3FA96A, #2E8B57);
+}
+
+.widget-stagebar i.c-wait {
+  background: linear-gradient(180deg, #A9A29A, #8E8D8A);
+}
+
+.widget-stagebar i.c-off {
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.widget-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.widget-stats span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.widget-stats b {
+  font-family: var(--f-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.widget-stats i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.widget-stats i.c-sel {
+  background: #2E8B57;
+}
+
+.widget-stats i.c-wait {
+  background: #8E8D8A;
+}
+
+.widget-stats i.c-off {
+  background: color-mix(in srgb, var(--ink) 20%, transparent);
+}
+
+/* ---------- Кольцо недели ---------- */
+.widget-ring {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.widget-ring svg {
+  width: 104px;
+  height: 104px;
+  flex-shrink: 0;
+}
+
+.widget-ring .ring-info {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.widget-ring .ring-info .big {
+  font-family: var(--f-display);
+  font-size: 31px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.widget-ring .ring-info .sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.widget-ring .ring-info .delta {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.widget-ring .ring-info .delta.up {
+  color: #155C33;
+}
+
+.widget-ring .ring-info .delta.down {
+  color: #C0331F;
+}
+
+[data-theme="dark"] .widget-ring .ring-info .delta.up {
+  color: #8ED9AA;
+}
+
+[data-theme="dark"] .widget-ring .ring-info .delta.down {
+  color: #FF8A7A;
+}
+
+/* ---------- Календарь активности ---------- */
+.widget-heat {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 6px;
+  row-gap: 3px;
+  font-size: 10px;
+}
+
+.widget-heat .heat-months {
+  display: grid;
+  grid-template-columns: repeat(var(--w), minmax(0, 1fr));
+  gap: 4px;
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.widget-heat .heat-wd {
+  display: grid;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--muted);
+  align-items: center;
+  line-height: 1;
+}
+
+.widget-heat .heat-cells {
+  display: grid;
+  grid-template-rows: repeat(7, auto);
+  grid-auto-flow: column;
+  grid-template-columns: repeat(var(--w), minmax(0, 1fr));
+  gap: 4px;
+}
+
+.widget-heat .heat-cell {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 0;
+  padding: 0;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  cursor: pointer;
+  transition: transform var(--dur-ui) var(--ease-out), box-shadow var(--dur-ui) var(--ease-out);
+}
+
+.widget-heat .heat-cell.l1 {
+  background: color-mix(in srgb, var(--amber) 30%, transparent);
+}
+
+.widget-heat .heat-cell.l2 {
+  background: color-mix(in srgb, var(--amber) 55%, transparent);
+}
+
+.widget-heat .heat-cell.l3 {
+  background: color-mix(in srgb, var(--amber) 78%, transparent);
+}
+
+.widget-heat .heat-cell.l4 {
+  background: var(--amber);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--amber) 50%, transparent);
+}
+
+.widget-heat .heat-cell.future {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.widget-heat .heat-cell.on {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.widget-heat .heat-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.widget-heat .heat-legend .heat-cell {
+  width: 12px;
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.heat-cell:hover {
+    transform: scale(1.18);
+    box-shadow: 0 0 0 1px var(--ink);
+  }
+}
+
+/* ---------- Полоса списаний ---------- */
+.widget-strip {
+  display: grid;
+  grid-template-columns: repeat(30, minmax(0, 1fr));
+  gap: 3px;
+  height: 76px;
+  align-items: end;
+}
+
+.widget-strip .strip-col {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.widget-strip .strip-col i {
+  display: block;
+  width: 100%;
+  border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, #F0954A, var(--amber));
+  transform-origin: bottom;
+}
+
+.widget-strip .strip-col i.zero {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.widget-strip .strip-col.on i {
+  background: linear-gradient(180deg, #FFB166, #E0731A);
+}
+
+.widget-strip .strip-col.today::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+/* ---------- Движение графиков ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .widget-strip .strip-col i {
+    animation: grow-y 620ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 16ms);
+  }
+
+  @keyframes grow-y {
+    from { transform: scaleY(0.04); }
+  }
+
+  .widget-heat .heat-cell {
+    animation: heat-pop 420ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 10ms);
+  }
+
+  @keyframes heat-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+  }
+
+  .widget-stagebar i {
+    animation: bar-x 640ms var(--ease-out) both;
+  }
+
+  @keyframes bar-x {
+    from { transform: scaleX(0.02); }
+  }
+}
+
+/* Кольцо прорисовывается */
+.ring-arc {
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ring-arc {
+    animation: ring-draw 900ms var(--ease-out) both;
+  }
+
+  @keyframes ring-draw {
+    from { stroke-dasharray: 0 1000; }
+  }
+}
+
+/* ============ Слой 02.11: читаемость, три уровня важности, плотность ============ */
+
+/* ---------- Кегль и насыщенность вверх: мелкое читается без усилия ---------- */
+.widget-head h3 {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.085em;
+  color: var(--ink-soft);
+}
+
+.widget-head .meta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.widget-row .wtitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.widget-row .wsub {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.widget-row .wlead {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.widget-lessons .lsubj {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.widget-lessons .ldetail {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.widget-lessons .ltime b {
+  font-size: 15px;
+}
+
+.widget-pulse .ptile span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.widget-ring .ring-info .sub {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.widget-heat .heat-months,
+.widget-heat .heat-wd {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.chart-readout span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.chart-legend {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* ---------- Плотность: меньше декоративного воздуха ---------- */
+.widget {
+  gap: 14px;
+  padding: 20px 22px 22px;
+}
+
+.widget-hero {
+  gap: 10px;
+  padding: 22px 24px 22px;
+}
+
+.widget-hero .title {
+  font-size: 25px;
+}
+
+.widget-hero .text {
+  font-size: 15.5px;
+  color: rgba(248, 245, 240, 0.82);
+}
+
+.widget-hero .kicker {
+  color: rgba(248, 245, 240, 0.72);
+}
+
+.widget-row {
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+.widget-pulse .ptile {
+  padding: 12px 14px;
+}
+
+.widget-strip {
+  height: 62px;
+}
+
+.widget-heat .heat-cells {
+  gap: 3px;
+}
+
+/* Кольцо недели: компактнее, число крупнее */
+.widget-ring {
+  gap: 16px;
+}
+
+.widget-ring svg {
+  width: 92px;
+  height: 92px;
+}
+
+.widget-ring .ring-info .big {
+  font-size: 34px;
+}
+
+/* ---------- Уровни важности ----------
+   Уровень 1 (срочное сейчас): Hero и Горит — плотнее, контрастнее, с акцентной кромкой.
+   Уровень 2 (аналитика): обычное стекло.
+   Уровень 3 (справочное): тише по фону и заголовку. */
+.widget-grid > .tier-1 {
+  --card: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 0 0 1px var(--line-strong),
+    0 1px 2px rgba(20, 16, 13, 0.06),
+    0 12px 30px -14px rgba(20, 16, 13, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+:root[data-theme="dark"] .widget-grid > .tier-1 {
+  --card: rgba(255, 255, 255, 0.10);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .widget-grid > .tier-1 {
+    --card: rgba(255, 255, 255, 0.10);
+  }
+}
+
+.widget-grid > .tier-1 .widget-head::before {
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--amber) 22%, transparent);
+}
+
+.widget-grid > .tier-1 .widget-head h3 {
+  color: var(--ink);
+}
+
+/* Третий уровень: тише фон, мельче заголовок, слабее кромка */
+.widget-grid > .tier-3 {
+  --card: rgba(255, 255, 255, 0.62);
+}
+
+:root[data-theme="dark"] .widget-grid > .tier-3 {
+  --card: rgba(255, 255, 255, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .widget-grid > .tier-3 {
+    --card: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.widget-grid > .tier-3 .widget-head h3 {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.widget-grid > .tier-3 .widget-head::before {
+  background: var(--muted);
+  box-shadow: none;
+  opacity: 0.55;
+}
+
+/* ---------- Семантика состояний ---------- */
+.widget-row .wtag.action {
+  background: var(--tone-warn-bg);
+  color: var(--tone-warn);
+}
+
+.widget-row .wtag.win {
+  background: var(--tone-ok-bg);
+  color: var(--tone-ok);
+}
+
+.widget-row .wtag.wait {
+  background: var(--tone-info-bg);
+  color: var(--tone-info);
+}
+
+.widget-row .wtag.closed {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  color: var(--muted);
+}
+
+.widget-row .wlead.hot {
+  color: var(--tone-hot);
+}
+
+.widget-row .wlead.warn {
+  color: var(--tone-warn);
+}
+
+.widget-lessons .lrow.now {
+  background: var(--tone-warn-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 34%, transparent);
+}
+
+/* Просрочка читается сразу: строку подкрашиваем, а не только дату */
+.widget-row.is-late {
+  background: color-mix(in srgb, var(--tone-hot) 7%, transparent);
+  box-shadow: inset 2px 0 0 var(--tone-hot);
+}
+
+.widget-ring .ring-info .delta.up {
+  color: var(--tone-ok);
+}
+
+.widget-ring .ring-info .delta.down {
+  color: var(--tone-hot);
+}
+
+.widget-stats i.c-sel {
+  background: var(--tone-ok);
+}
+
+.widget-stats i.c-wait {
+  background: var(--tone-info);
+}
+
+.widget-stats i.c-off {
+  background: color-mix(in srgb, var(--ink) 26%, transparent);
+}
+
+.widget-stagebar i.c-sel {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-ok) 82%, white), var(--tone-ok));
+}
+
+.widget-stagebar i.c-wait {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-info) 80%, white), var(--tone-info));
+}
+
+.widget-strip .strip-col i {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--amber) 62%, white), var(--amber));
+}
+
+.widget-strip .strip-col.on i {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--amber) 80%, white), var(--amber));
+}
+
+/* Плотный режим: гасим перемещение, оставляем проявление */
+@media (prefers-reduced-motion: reduce) {
+  .widget-strip .strip-col i,
+  .widget-heat .heat-cell,
+  .widget-stagebar i,
+  .ring-arc {
+    animation: fade-only 200ms ease both;
+  }
+
+  @keyframes fade-only {
+    from { opacity: 0; }
+  }
+
+  .widget-heat .heat-cell:hover,
+  .widget-pulse .ptile:hover,
+  .widget-row:active {
+    transform: none;
+  }
+}

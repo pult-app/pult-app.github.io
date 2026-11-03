@@ -1,0 +1,352 @@
+/* Пульт — Движок движения и токены дизайна (02.11.2026).
+   Только transform и opacity. Все кривые из таблицы Emil Kowalski. */
+
+/* ---------- Токены движения ----------
+   Одна длительность на один тип взаимодействия. Разнобой 180/200/260/280/420
+   на один и тот же ховер читается как дребезг, особенно у вложенных карточек. */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.28, 0.5, 1);
+  --dur-press: 140ms;
+  --dur-hover: 160ms;
+  --dur-ui: 200ms;
+  --dur-enter: 520ms;
+}
+
+/* ---------- Токены дизайна только для десктопа (мобилку не трогаем) ----------
+   Один сигнальный цвет. Это главное правило премиальных интерфейсов:
+   янтарь несёт акцент, всё остальное - тёплые нейтрали. Два насыщенных
+   акцента конкурируют за внимание и читаются как шум, поэтому фиолетовый убран. */
+.dash-body {
+  --ink: #1A1613;
+  --ink-soft: #322B25;
+  --muted: #5C544C;
+  --line: rgba(26, 22, 19, 0.12);
+  --line-strong: rgba(26, 22, 19, 0.20);
+  --card: rgba(255, 255, 255, 0.82);
+  --card-solid: #FFFFFF;
+
+  /* Сигнал: янтарь. На светлом берём глубже, иначе не хватает контраста */
+  --amber: #A8500A;
+  --amber-soft: rgba(168, 80, 10, 0.14);
+  --amber-glow: rgba(168, 80, 10, 0.22);
+  --signal: #A8500A;
+
+  /* Температурные подложки фона: тёплая и едва холодная.
+     Холодная сильно разбавлена - она даёт глубину, но не спорит с янтарём. */
+  --warm: rgba(196, 126, 48, 0.20);
+  --cool: rgba(70, 96, 130, 0.10);
+
+  /* Семантика состояния - только там, где нужен смысл, не декор */
+  --tone-ok: #14623C;
+  --tone-ok-bg: rgba(20, 98, 60, 0.12);
+  --tone-warn: #8A4207;
+  --tone-warn-bg: rgba(168, 80, 10, 0.13);
+  --tone-hot: #A3200F;
+  --tone-hot-bg: rgba(163, 32, 15, 0.12);
+  --tone-info: #33556E;
+  --tone-info-bg: rgba(51, 85, 110, 0.12);
+}
+
+/* Тёмная палитра: и по явному выбору, и по системной настройке.
+   data-theme стоит на <html>, класс dash-body — на <body>, поэтому селектор вложенный. */
+:root[data-theme="dark"] .dash-body,
+:root[data-theme="dark"] .dash-bg {
+  --ink: #FAF6F0;
+  --ink-soft: #DED7CE;
+  --muted: #ABA199;
+  --line: rgba(255, 245, 235, 0.11);
+  --line-strong: rgba(255, 245, 235, 0.19);
+  --card: rgba(255, 245, 235, 0.07);
+  --card-solid: #171513;
+
+  --amber: #FFA53D;
+  --amber-soft: rgba(255, 165, 61, 0.16);
+  --amber-glow: rgba(255, 165, 61, 0.20);
+  --signal: #FFA53D;
+
+  --warm: rgba(255, 150, 70, 0.22);
+  --cool: rgba(110, 150, 200, 0.11);
+
+  --tone-ok: #7FDDA6;
+  --tone-ok-bg: rgba(127, 221, 166, 0.14);
+  --tone-warn: #FFC078;
+  --tone-warn-bg: rgba(255, 192, 120, 0.14);
+  --tone-hot: #FF9184;
+  --tone-hot-bg: rgba(255, 145, 132, 0.14);
+  --tone-info: #9DBFD6;
+  --tone-info-bg: rgba(157, 191, 214, 0.14);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .dash-body,
+  :root:not([data-theme="light"]) .dash-bg {
+    --ink: #FAF6F0;
+    --ink-soft: #DED7CE;
+    --muted: #ABA199;
+    --line: rgba(255, 245, 235, 0.11);
+    --line-strong: rgba(255, 245, 235, 0.19);
+    --card: rgba(255, 245, 235, 0.07);
+    --card-solid: #171513;
+    --amber: #FFA53D;
+    --amber-soft: rgba(255, 165, 61, 0.16);
+    --amber-glow: rgba(255, 165, 61, 0.20);
+    --signal: #FFA53D;
+    --warm: rgba(255, 150, 70, 0.22);
+    --cool: rgba(110, 150, 200, 0.11);
+    --tone-ok: #7FDDA6;
+    --tone-ok-bg: rgba(127, 221, 166, 0.14);
+    --tone-warn: #FFC078;
+    --tone-warn-bg: rgba(255, 192, 120, 0.14);
+    --tone-hot: #FF9184;
+    --tone-hot-bg: rgba(255, 145, 132, 0.14);
+    --tone-info: #9DBFD6;
+    --tone-info-bg: rgba(157, 191, 214, 0.14);
+  }
+}
+
+/* ---------- База фона под орбами ---------- */
+.dash-body {
+  background-color: #F4F1EC;
+}
+
+:root[data-theme="dark"] .dash-body {
+  background-color: #0A0B0E;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .dash-body {
+    background-color: #0A0B0E;
+  }
+}
+
+/* ---------- Слой фона с орбами ----------
+   Стекло видно только когда за ним есть что разглядывать. Пятна крупные,
+   насыщенные и их больше: тогда карточки читаются как настоящая линза, а не плёнка. */
+.dash-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 1;
+}
+
+/* Пятна фона: без filter: blur.
+   Радиальный градиент уже мягкий, а blur на площади до 1200px пересчитывался
+   при каждой смене масштаба и был входом для размытия карточек. */
+.dash-bg i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  will-change: auto;
+}
+
+/* Пять пятен: тёплая база плюс один сдержанный холодный акцент.
+   Никакой пестроты: все пятна из одной тёплой семьи, холодное только
+   одно и очень разбавленное - оно даёт глубину, но не спорит с янтарём. */
+.dash-bg i:nth-child(1) {
+  width: 64vw;
+  height: 64vw;
+  top: -24vw;
+  left: -14vw;
+  background: radial-gradient(circle at 42% 42%, color-mix(in srgb, var(--warm) 130%, transparent), transparent 70%);
+  animation: orb-a 26s var(--ease-in-out) infinite;
+}
+
+.dash-bg i:nth-child(2) {
+  width: 56vw;
+  height: 56vw;
+  top: -14vw;
+  right: -14vw;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--cool) 100%, transparent), transparent 70%);
+  animation: orb-b 31s var(--ease-in-out) infinite;
+}
+
+.dash-bg i:nth-child(3) {
+  width: 52vw;
+  height: 52vw;
+  bottom: -20vw;
+  right: -8vw;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--warm) 95%, transparent), transparent 72%);
+  animation: orb-c 29s var(--ease-in-out) infinite;
+}
+
+.dash-bg i:nth-child(4) {
+  width: 50vw;
+  height: 50vw;
+  bottom: -20vw;
+  left: -12vw;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--warm) 78%, transparent), transparent 72%);
+  animation: orb-d 34s var(--ease-in-out) infinite;
+}
+
+.dash-bg i:nth-child(5) {
+  width: 40vw;
+  height: 40vw;
+  top: 30vw;
+  left: 30vw;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--warm) 60%, transparent), transparent 74%);
+  animation: orb-e 37s var(--ease-in-out) infinite;
+}
+
+.dash-bg i:nth-child(6) {
+  width: 34vw;
+  height: 34vw;
+  top: 12vw;
+  left: 26vw;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--cool) 70%, transparent), transparent 74%);
+  animation: orb-f 40s var(--ease-in-out) infinite;
+}
+
+/* В светлой теме пятна тише: на белом сильный цвет читается как грязь */
+:root[data-theme="light"] .dash-bg {
+  opacity: 0.72;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .dash-bg {
+    opacity: 0.72;
+  }
+}
+
+@keyframes orb-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(7%, 9%, 0) scale(1.14); }
+  66% { transform: translate3d(-6%, 5%, 0) scale(0.94); }
+}
+
+@keyframes orb-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  40% { transform: translate3d(-8%, 7%, 0) scale(1.1); }
+  70% { transform: translate3d(4%, -6%, 0) scale(0.92); }
+}
+
+@keyframes orb-c {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  35% { transform: translate3d(-6%, -8%, 0) scale(1.12); }
+  72% { transform: translate3d(7%, 3%, 0) scale(0.95); }
+}
+
+@keyframes orb-d {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  45% { transform: translate3d(9%, -5%, 0) scale(1.08); }
+  75% { transform: translate3d(-4%, 6%, 0) scale(0.9); }
+}
+
+@keyframes orb-e {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  38% { transform: translate3d(-10%, 8%, 0) scale(1.16); }
+  68% { transform: translate3d(6%, -7%, 0) scale(0.86); }
+}
+
+@keyframes orb-f {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  42% { transform: translate3d(8%, 10%, 0) scale(1.12); }
+  74% { transform: translate3d(-7%, -5%, 0) scale(0.9); }
+}
+
+/* Мелкое зерно поверх фона: «дорогая» шероховатость */
+.dash-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.028;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+:root[data-theme="dark"] .dash-bg::after {
+  opacity: 0.05;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .dash-bg::after {
+    opacity: 0.05;
+  }
+}
+
+/* Контент над фоном */
+.dash {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- Появление виджетов: лесенкой, без рывка ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .widget-grid.first-paint > * {
+    animation: w-enter var(--dur-enter) var(--ease-out) both;
+  }
+
+  .widget-grid.first-paint > :nth-child(2) { animation-delay: 55ms; }
+  .widget-grid.first-paint > :nth-child(3) { animation-delay: 110ms; }
+  .widget-grid.first-paint > :nth-child(4) { animation-delay: 165ms; }
+  .widget-grid.first-paint > :nth-child(5) { animation-delay: 220ms; }
+  .widget-grid.first-paint > :nth-child(6) { animation-delay: 275ms; }
+  .widget-grid.first-paint > :nth-child(7) { animation-delay: 330ms; }
+  .widget-grid.first-paint > :nth-child(8) { animation-delay: 385ms; }
+  .widget-grid.first-paint > :nth-child(9) { animation-delay: 440ms; }
+  .widget-grid.first-paint > :nth-child(n+10) { animation-delay: 495ms; }
+
+  @keyframes w-enter {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 16px, 0) scale(0.985);
+    }
+  }
+}
+
+/* ---------- Появление полноэкранной вкладки ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .dash-tab .tab-content {
+    animation: tab-enter 340ms var(--ease-out) both;
+  }
+
+  @keyframes tab-enter {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 10px, 0);
+    }
+  }
+}
+
+/* ---------- Живой индикатор сигнала ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .pulse-dot {
+    animation: dot-pulse 2.6s var(--ease-in-out) infinite;
+  }
+
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.55; transform: scale(0.86); }
+  }
+}
+
+/* Наведение на карточку даёт подъём и подсветку канта (в glass.css).
+   Световой блик по всей площади убран: он ложился на текст и читался как сломанный фон. */
+
+
+/* ---------- Уменьшение движения: гасим перемещение, оставляем прозрачность ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .dash-bg i {
+    animation: none;
+  }
+
+  .widget-grid.first-paint > *,
+  .dash-tab .tab-content {
+    animation: fade-in 200ms ease both;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+  }
+
+  .glass.widget::after {
+    display: none;
+  }
+
+  .pulse-dot {
+    animation: none;
+  }
+}

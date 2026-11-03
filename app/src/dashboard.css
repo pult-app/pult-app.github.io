@@ -1,0 +1,556 @@
+/* Пульт — Десктоп-дашборд v2 (02.11.2026).
+   Боковая панель всегда видна, сетка адаптируется под разрешение вплоть до 2K. */
+
+/* ---------- Корневая раскладка ----------
+   Панель не прижата к краю: она плавает отдельным островом в левом поле.
+   Колонка шире самой панели, чтобы вокруг стекла был воздух. */
+.dash {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  height: 100vh;
+  overflow: hidden;
+  gap: 0;
+}
+
+@media (min-width: 1600px) {
+  .dash {
+    grid-template-columns: 108px minmax(0, 1fr);
+  }
+}
+
+/* Основная область: прокрутка (дашборд) */
+.dash-main {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 28px 28px 40px 8px;
+  scroll-behavior: smooth;
+  /* Переход по margin убран: это layout-свойство, ширина всей сетки
+     пересчитывалась каждый кадр. Место резервируется сразу,
+     визуальное перетекание делает View Transitions. */
+  transition: none;
+}
+
+/* Когда DetailPane открыта — освобождаем место */
+.dash-main.pane-open {
+  margin-right: 420px;
+}
+
+/* ---------- Полноэкранная вкладка: НЕ перекрывает сайдбар, а течёт в колонке 2 ---------- */
+.dash-tab {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 28px 28px 40px;
+  scroll-behavior: smooth;
+}
+
+.dash-tab .tab-content {
+  max-width: 1240px;
+  margin-inline: auto;
+}
+
+/* Плавные отступы по мере роста экрана */
+@media (min-width: 1600px) {
+  .dash-main,
+  .dash-tab {
+    padding: 32px 32px 48px;
+  }
+}
+
+/* ---------- Bento-сетка: 6 колонок, карточки тянутся по горизонтали ----------
+   Квадратные карточки получаются из одинаковых колонок. Шесть узких колонок
+   позволяют задавать карточкам ширину 2, 3, 4, 6 - и раскладка читается как
+   bento: широкие плашки аналитики и узкие плитки статусов. */
+.masonry {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 16px;
+  /* Карточки ряда одной высоты: под короткой не остаётся дыры.
+     Внутри карточки контент распределяется, поэтому пустого места не видно. */
+  align-items: stretch;
+  grid-auto-flow: row dense;
+}
+
+.masonry > * {
+  display: grid;
+  align-content: start;
+  height: 100%;
+  grid-auto-rows: min-content;
+  min-width: 0;
+}
+
+/* Заголовок сверху, содержимое забирает остаток высоты */
+.masonry > .widget {
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+}
+
+/* Внутренние блоки растягиваются: пустота внизу не читается как дыра */
+.masonry > .widget > .widget-rows,
+.masonry > .widget > .widget-lessons,
+.masonry > .widget > .widget-pulse,
+.masonry > .widget > .mail-list,
+.masonry > .widget > .sub-list,
+.masonry > .widget > .channels,
+.masonry > .widget > .outcomes,
+.masonry > .widget > .funnel-steps,
+.masonry > .widget > .speed,
+.masonry > .widget > .chart,
+.masonry > .widget > .timeline,
+.masonry > .widget > .week {
+  align-content: stretch;
+  height: 100%;
+}
+
+/* Порядок карточек: широкие аналитические и узкие статусные чередуются */
+.masonry > .w-2 { grid-column: span 2; }
+.masonry > .w-3 { grid-column: span 3; }
+.masonry > .w-4 { grid-column: span 4; }
+.masonry > .w-6 { grid-column: span 6; }
+
+@media (max-width: 1339px) {
+  .masonry {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .masonry > .w-3 { grid-column: span 2; }
+  .masonry > .w-4 { grid-column: span 4; }
+  .masonry > .w-2 { grid-column: span 2; }
+  .masonry > .w-6 { grid-column: span 4; }
+}
+
+@media (min-width: 2000px) {
+  .masonry {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 20px;
+  }
+}
+
+/* ---------- Верхняя часть дашборда: баннер, график, раскладка ---------- */
+.widget-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  max-width: 1600px;
+  margin-inline: auto;
+  align-items: start;
+}
+
+/* Баннер и главный график во всю ширину: им нужен простор */
+.widget-grid > .span-full {
+  grid-column: 1 / -1;
+  /* Не даём широкой карточке раздуваться по высоте: она про контент, а не про воздух */
+  max-height: none;
+}
+
+/* Календарь активности: во всю ширину только сетка, высота по содержимому */
+.widget-grid > .widget-heat-wrap {
+  max-height: 240px;
+}
+
+/* 2K и шире: шире контейнер и отступы */
+@media (min-width: 2000px) {
+  .widget-grid {
+    max-width: 2280px;
+    gap: 22px;
+  }
+
+  .dash-main,
+  .dash-tab {
+    padding-inline: 36px;
+  }
+
+  .dash-tab .tab-content {
+    max-width: 1600px;
+  }
+}
+
+/* На очень широких экранах контент по центру, а не прижат влево */
+@media (min-width: 1800px) {
+  .widget-grid {
+    margin-inline: auto;
+  }
+}
+
+/* Ноутбуки: панель деталей уже */
+@media (max-width: 1340px) {
+  .dash-main.pane-open {
+    margin-right: 380px;
+  }
+}
+
+/* ---------- Боковая панель: плавающий остров ----------
+   Не полоса во всю высоту и не прижата к краю: отдельный стеклянный остров
+   с воздухом вокруг, скруглением и собственным свечением. */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  height: calc(100vh - 40px);
+  margin: 20px 0 20px 18px;
+  padding: 14px 0 16px;
+  border-radius: 28px;
+  overflow: hidden;
+  z-index: 20;
+  position: relative;
+  background: color-mix(in srgb, var(--card-solid) 52%, transparent);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 18px 44px -22px rgba(20, 16, 13, 0.4),
+    0 30px 70px -40px var(--amber-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+[data-theme="dark"] .sidebar {
+  background: color-mix(in srgb, var(--card-solid) 58%, transparent);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 18px 44px -22px rgba(0, 0, 0, 0.65),
+    0 30px 70px -40px var(--amber-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Фиолетовая полоса-акцент сверху панели */
+.sidebar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 34px;
+  height: 3px;
+  margin-left: -17px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, transparent, var(--amber), transparent);
+  opacity: 0.75;
+}
+
+
+.sidebar-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.sidebar-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  position: relative;
+  transition:
+    color var(--dur-ui) var(--ease-out),
+    background var(--dur-ui) var(--ease-out),
+    transform var(--dur-press) var(--ease-out),
+    box-shadow var(--dur-ui) var(--ease-out);
+}
+
+.sidebar-btn svg {
+  width: 22px;
+  height: 22px;
+  transition: transform var(--dur-ui) var(--ease-spring);
+}
+
+/* Индикатор активной вкладки: полоска слева.
+   Высота фиксирована, анимация идёт по scaleY: height - layout-свойство
+   и заставляло пересчитывать сайдбар с его размытием каждый кадр. */
+.sidebar-btn::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  width: 3px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--amber);
+  transform: translateY(-50%) scaleY(0);
+  transform-origin: center;
+  transition: transform var(--dur-ui) var(--ease-spring);
+}
+
+.sidebar-btn.active::before {
+  transform: translateY(-50%) scaleY(1);
+}
+
+.sidebar-btn.active {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--amber) 20%, transparent);
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--amber) 52%, transparent),
+    0 8px 20px -10px color-mix(in srgb, var(--amber) 72%, transparent);
+}
+
+/* Подпись раздела выезжает при наведении: панель остаётся узкой, но перестаёт быть немой */
+.sidebar-btn .sb-label {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translate3d(-6px, -50%, 0);
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: var(--card-solid);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px -8px rgba(20, 16, 13, 0.3), 0 0 0 1px var(--line);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms var(--ease-out), transform 200ms var(--ease-out);
+  z-index: 3;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sidebar-btn:hover .sb-label,
+  .sidebar-btn:focus-visible .sb-label {
+    opacity: 1;
+    transform: translate3d(0, -50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-btn .sb-label {
+    transition: opacity 120ms linear;
+  }
+}
+
+.sidebar-btn.active svg {
+  transform: scale(1.06);
+}
+
+.sidebar-btn:active {
+  transform: scale(0.92);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sidebar-btn:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+  }
+
+  .sidebar-btn:hover svg {
+    transform: translate3d(0, -1px, 0) scale(1.05);
+  }
+
+  .sidebar-btn.active:hover {
+    color: var(--amber);
+    background: color-mix(in srgb, var(--amber) 18%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-btn,
+  .sidebar-btn svg,
+  .sidebar-btn::before {
+    transition: color var(--dur-ui) ease, background var(--dur-ui) ease;
+  }
+}
+
+/* Бейдж */
+.sidebar-btn .sb-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #E5484D;
+  color: #fff;
+  font: 600 10px/16px var(--f-mono);
+  text-align: center;
+}
+
+.sidebar-btn .sb-badge:empty {
+  display: none;
+}
+
+/* Статус агента */
+.sidebar-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px 8px;
+}
+
+.sidebar-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--ok);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--ok) 60%, transparent);
+}
+
+.sidebar-dot.warn {
+  background: var(--warn);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--warn) 60%, transparent);
+}
+
+.sidebar-dot.off {
+  background: var(--hot);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--hot) 60%, transparent);
+}
+
+.sidebar-time {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* ---------- DetailPane ---------- */
+.detail-pane {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 420px;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 20px;
+  z-index: 30;
+  animation: pane-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.detail-pane.out {
+  animation: pane-out 0.28s ease-in forwards;
+}
+
+@keyframes pane-in {
+  from {
+    transform: translateX(40px);
+    opacity: 0;
+  }
+}
+
+@keyframes pane-out {
+  to {
+    transform: translateX(40px);
+    opacity: 0;
+  }
+}
+
+/* Затемнение */
+.detail-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  background: rgba(0, 0, 0, 0.08);
+  animation: overlay-in 0.35s ease both;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Закрыть */
+.detail-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  border: 0;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 18px;
+  z-index: 5;
+}
+
+.detail-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .detail-close {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .detail-close:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.detail-inner {
+  display: grid;
+  gap: 16px;
+}
+
+/* ---------- Адаптив: скрываем всё на мобилке ---------- */
+@media (max-width: 1023px) {
+  .dash,
+  .dash-body {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  body > #root > .wrap {
+    display: none;
+  }
+}
+
+/* ---------- Скелетон ---------- */
+.dash-sk {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  max-width: 1600px;
+  margin-inline: auto;
+}
+
+@media (min-width: 2000px) {
+  .dash-sk {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 1340px) {
+  .dash-sk {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.dash-sk .sk-widget {
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.30);
+  min-height: 180px;
+}
+
+.dash-sk .sk-widget.span2 {
+  grid-column: span 2;
+}
+
+.dash-sk .sk-widget.span1 {
+  grid-column: span 1;
+}
+
+.dash-sk .sk-widget.tall {
+  min-height: 260px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dash-sk .sk-widget {
+    animation: sk 1.2s ease-in-out infinite alternate;
+  }
+
+  @keyframes sk {
+    to {
+      opacity: 0.45;
+    }
+  }
+}

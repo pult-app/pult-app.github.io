@@ -1,0 +1,703 @@
+/* Пульт — Графики v2 (02.11.2026).
+   Плотные информативные блоки: шапка с числом, площадь с двумя линиями, кольцо с полосами.
+   Пустые графики не выводятся: решение принимает виджет, здесь только вид. */
+
+/* ---------- Общая обёртка графика ---------- */
+.chart,
+.channels,
+.outcomes {
+  display: grid;
+  gap: 12px;
+}
+
+/* Шапка: крупное число слева, дельта справа */
+.chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.chart-figure {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chart-figure b {
+  font-family: var(--f-display);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-figure span {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-side {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.chart-delta {
+  font-family: var(--f-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-delta.up {
+  color: var(--tone-ok);
+}
+
+.chart-delta.down {
+  color: var(--tone-hot);
+}
+
+.chart-delta-note {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.3;
+  max-width: 15ch;
+}
+
+/* ---------- Площадь с двумя линиями ----------
+   viewBox равен реальной ширине контейнера, поэтому подписи не раздуваются. */
+.area {
+  width: 100%;
+  height: 200px;
+  display: block;
+  cursor: crosshair;
+  margin-top: 2px;
+}
+
+.area .grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+}
+
+.area .tick,
+.area .axis {
+  fill: var(--muted);
+  font-family: var(--f-mono);
+  font-size: 11px;
+}
+
+/* График: янтарная линия и заливка. Один сигнальный цвет на весь интерфейс. */
+.area .area-line {
+  stroke: var(--amber);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.area .area-line.prev {
+  stroke: color-mix(in srgb, var(--muted) 62%, transparent);
+  stroke-width: 1.8;
+  stroke-dasharray: 5 5;
+  animation: none;
+}
+
+.area .area-dot {
+  fill: var(--amber);
+  stroke: var(--card-solid);
+  stroke-width: 2.5;
+  /* scale вместо r: анимация радиуса перерисовывает SVG целиком каждый кадр */
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 150ms var(--ease-out);
+}
+
+.area .area-dot.prev {
+  fill: color-mix(in srgb, var(--muted) 70%, transparent);
+  stroke-width: 2;
+}
+
+.area .guide {
+  stroke: color-mix(in srgb, var(--amber) 55%, transparent);
+  stroke-width: 1;
+  stroke-opacity: 0.5;
+}
+
+/* ---------- Пустое состояние графика: не пустой холст, а понятная карточка ---------- */
+.chart-empty {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 132px;
+  padding: 6px 2px;
+}
+
+.ce-ring {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--amber) 16%, transparent), transparent 70%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 26%, transparent);
+}
+
+.ce-ring i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: color-mix(in srgb, var(--amber) 70%, transparent);
+  border-right-color: color-mix(in srgb, var(--amber) 35%, transparent);
+}
+
+.ce-ring i:nth-child(1) { inset: 6px; border-top-color: color-mix(in srgb, var(--amber) 55%, transparent); }
+.ce-ring i:nth-child(2) { inset: 13px; border-top-color: color-mix(in srgb, var(--amber) 38%, transparent); }
+.ce-ring i:nth-child(3) { inset: 20px; border-top-color: color-mix(in srgb, var(--amber) 24%, transparent); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ce-ring i { animation: ce-spin 3.4s linear infinite; }
+  .ce-ring i:nth-child(2) { animation-duration: 4.6s; animation-direction: reverse; }
+  .ce-ring i:nth-child(3) { animation-duration: 5.8s; }
+
+  @keyframes ce-spin {
+    to { transform: rotate(360deg); }
+  }
+}
+
+.ce-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ce-text b {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ce-text span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Подпись под графиком */
+.chart-foot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cf-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cf-item b {
+  font-family: var(--f-mono);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-item i {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.lg-now {
+  background: var(--amber);
+}
+
+.lg-prev {
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--ink) 40%, transparent) 0 4px, transparent 4px 8px);
+}
+
+.cf-day {
+  margin-left: auto;
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  opacity: 0.85;
+}
+
+/* ---------- Кольцо и полосы долей ---------- */
+.outcomes {
+  gap: 14px;
+}
+
+.donut {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.donut svg {
+  width: 138px;
+  height: 138px;
+  transform: rotate(-90deg);
+}
+
+.donut-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 9%, transparent);
+  stroke-width: 13;
+}
+
+.donut-seg {
+  fill: none;
+  stroke-width: 13;
+  stroke-linecap: round;
+  /* Без анимации геометрии: stroke-width перерисовывает весь SVG,
+     а наведение на кольцо задевало все сегменты разом */
+}
+
+.donut:hover .donut-seg {
+  stroke-width: 14;
+}
+
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1px;
+  text-align: center;
+}
+
+.donut-center b {
+  font-family: var(--f-display);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.donut-center b i {
+  font-style: normal;
+  font-size: 0.5em;
+  font-weight: 500;
+  opacity: 0.45;
+  margin-left: 1px;
+}
+
+.donut-center span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.out-list {
+  display: grid;
+  gap: 9px;
+}
+
+.ol-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.ol-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ol-name i {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.ol-track {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  overflow: hidden;
+}
+
+.ol-track i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transform-origin: left;
+}
+
+.ol-num {
+  font-family: var(--f-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  min-width: 2ch;
+  text-align: right;
+}
+
+/* ---------- Каналы: полоса откликов и ответов ---------- */
+.channels {
+  gap: 13px;
+}
+
+.ch-row {
+  display: grid;
+  gap: 6px;
+}
+
+.ch-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.ch-top > span:first-child {
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ch-top > span:last-child {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.ch-top b {
+  font-family: var(--f-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.ch-top em {
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--muted);
+  min-width: 3ch;
+  text-align: right;
+}
+
+.ch-track {
+  position: relative;
+  height: 9px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  overflow: hidden;
+}
+
+.ch-track i {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 5px;
+  transform-origin: left;
+}
+
+.ch-all {
+  background: color-mix(in srgb, var(--amber) 30%, transparent);
+}
+
+.ch-rep {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--amber) 72%, transparent), var(--amber));
+}
+
+/* ---------- Ступени воронки ---------- */
+.funnel-steps {
+  display: grid;
+  gap: 13px;
+}
+
+.fs-row {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: transform 180ms var(--ease-out), background-color 200ms var(--ease-out);
+}
+
+.fs-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.fs-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.fs-val {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.fs-val b {
+  font-family: var(--f-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-val em {
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 3em;
+  text-align: right;
+}
+
+.fs-conv {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--tone-info-bg);
+  color: var(--tone-info);
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-track {
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  overflow: hidden;
+}
+
+.fs-track i {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--amber) 58%, transparent), var(--amber));
+  transform-origin: left;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fs-row:hover {
+    background: color-mix(in srgb, var(--amber) 6%, transparent);
+  }
+}
+
+.fs-row:active {
+  transform: scale(0.99);
+}
+
+/* ---------- Скорость ответа ---------- */
+.speed {
+  display: grid;
+  gap: 12px;
+}
+
+.speed-bars {
+  display: grid;
+  gap: 9px;
+}
+
+.sp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.sp-name {
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-track {
+  display: block;
+  height: 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  overflow: hidden;
+}
+
+.sp-track i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tone-ok) 55%, transparent), var(--tone-ok));
+  transform-origin: left;
+}
+
+.sp-num {
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  min-width: 2ch;
+  text-align: right;
+}
+
+/* Компактное пустое состояние для узких карточек */
+.chart-empty.small {
+  min-height: 96px;
+  gap: 14px;
+}
+
+.chart-empty.small .ce-ring {
+  width: 48px;
+  height: 48px;
+}
+
+.chart-empty.small .ce-text b {
+  font-size: 14px;
+}
+
+.chart-empty.small .ce-text span {
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sp-track i {
+    animation: bar-grow 700ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 80ms + 90ms);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-track i {
+    animation: none;
+  }
+}
+
+/* ---------- Движение графиков ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .area .area-line:not(.prev) {
+    stroke-dasharray: 1;
+    animation: line-draw 1100ms var(--ease-out) both;
+  }
+
+  /* Прошлое окно не прорисовывается: у него свой пунктир
+     (иначе dasharray:1 ломает пунктирную линию) */
+  .area .area-line.prev {
+    stroke-dasharray: 5 5;
+    animation: none;
+  }
+
+  @keyframes line-draw {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
+  }
+
+  .area .area-fill {
+    animation: fill-in 900ms var(--ease-out) 220ms both;
+  }
+
+  @keyframes fill-in {
+    from { opacity: 0; transform: translate3d(0, 10px, 0); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .area .tick,
+  .area .axis {
+    animation: axis-in 500ms var(--ease-out) 500ms both;
+  }
+
+  @keyframes axis-in {
+    from { opacity: 0; }
+  }
+
+  .donut svg {
+    animation: donut-in 760ms var(--ease-spring) both;
+  }
+
+  @keyframes donut-in {
+    from { opacity: 0; transform: rotate(-90deg) scale(0.82); }
+    to { opacity: 1; transform: rotate(-90deg) scale(1); }
+  }
+
+  .ol-row {
+    animation: row-in 420ms var(--ease-out) both;
+  }
+
+  @keyframes row-in {
+    from { opacity: 0; transform: translate3d(-6px, 0, 0); }
+  }
+
+  .ol-track i {
+    animation: bar-grow 720ms var(--ease-out) 140ms both;
+  }
+
+  .ch-track i {
+    animation: bar-grow 760ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 90ms + 100ms);
+  }
+
+  @keyframes bar-grow {
+    from { transform: scaleX(0.02); }
+  }
+
+  .fs-track i {
+    animation: bar-grow 760ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 110ms + 100ms);
+  }
+}
+
+/* ---------- Уменьшение движения ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .area .area-line,
+  .area .area-fill,
+  .area .tick,
+  .area .axis,
+  .donut svg,
+  .ol-row,
+  .ol-track i,
+  .ch-track i,
+  .fs-track i {
+    animation: none;
+  }
+}

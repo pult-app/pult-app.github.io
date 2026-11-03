@@ -48,3 +48,16 @@ export function transition(fn: () => void, dir: 'fwd' | 'back' | 'tab' = 'tab') 
   flushSync(fn)
   navTimer = window.setTimeout(() => { delete document.documentElement.dataset.nav }, 450)
 }
+
+export const hasViewTransition = () => typeof (document as Document & { startViewTransition?: unknown }).startViewTransition === 'function'
+
+/** Плавная перестройка раскладки: браузер снимает старый и новый вид и перетекает между ними.
+ *  Нужна там, где меняется геометрия целиком (открытие панели деталей сжимает сетку).
+ *  Анимировать margin или ширину тут нельзя: это раскладка на каждом кадре. Без поддержки — просто вызов. */
+export function morph(fn: () => void) {
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => { finished: Promise<void> } }
+  if (reduced() || !doc.startViewTransition) { fn(); return }
+  const t = doc.startViewTransition(() => { flushSync(fn) })
+  // Переход прерван новым: это нормально, ошибку не показываем.
+  t.finished.catch(() => { /* пусто */ })
+}

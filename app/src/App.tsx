@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { clearCache, configured, ensureByName, insert, loadAll, readCache, slug, supabase, update } from './lib/api'
+import { clearCache, configured, ensureByName, hasStoredSession, insert, loadAll, readCache, slug, supabase, update } from './lib/api'
 import { days, fmtDate, today } from './lib/dates'
 import { grade, statusPatch, type FunnelTab } from './lib/domain'
 import { upcoming } from './lib/billing'
@@ -13,10 +13,23 @@ import { Trainer } from './components/Trainer'
 import { Insights } from './components/Insights'
 import { Money, type NewSub } from './components/Money'
 import { Settings } from './components/Settings'
+import { Dashboard } from './components/Dashboard'
+import { Preloader } from './components/Preloader'
 import { Icons } from './components/icons'
 import { PullToRefresh, Skeleton, TabBar, Title, Toaster } from './components/native'
 import { scrollToTop, toast, transition } from './lib/ux'
-import type { NewRequest } from './components/AskClaude'
+
+/** Отслеживает медиа-запрос без лишних перерендеров (useSyncExternalStore). */
+function useMediaQuery(query: string) {
+  return useSyncExternalStore(
+    useCallback((cb: () => void) => {
+      const mq = window.matchMedia(query)
+      mq.addEventListener('change', cb)
+      return () => mq.removeEventListener('change', cb)
+    }, [query]),
+    () => window.matchMedia(query).matches,
+  )
+}
 
 /** Пять вкладок внизу; «Цифры» и «Настройки» открываются поверх вкладки и возвращают назад (как экран внутри навигации iOS). */
 export type Tab = 'today' | 'funnel' | 'inbox' | 'study' | 'money'
@@ -84,6 +97,9 @@ function Login() {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [authReady, setAuthReady] = useState(false)
+  // Вход уже был: экран из кэша рисуется сразу, не дожидаясь, пока Supabase
+  // обновит просроченный токен по сети.
+  const [storedSession] = useState(() => !DEMO && hasStoredSession())
   const [data, setData] = useState<PultData | null>(() => DEMO ? null : readCache())
   const [offline, setOffline] = useState(!navigator.onLine)
   const [error, setError] = useState('')
@@ -94,6 +110,7 @@ export default function App() {
   const [cards, setCards] = useState(location.hash === '#train')
   const [openSub, setOpenSub] = useState<string | null>(() => DEMO ? new URLSearchParams(location.search).get('sub') : null)
   const [openWork, setOpenWork] = useState<string | null>(null)
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
 
   // Каждый экран помнит, где его оставили (как в iOS); переход по ссылке внутри приложения открывает экран сверху.
   const scrollMemo = useRef<Record<string, number>>({})
@@ -191,8 +208,10 @@ export default function App() {
   }
 
   if (!configured) return <div className="wrap"><p className="banner">Не заданы VITE_SUPABASE_URL и VITE_SUPABASE_PUBLISHABLE_KEY.</p></div>
-  if (!authReady && !DEMO) return null
-  if (!session && !DEMO) return <div className="wrap"><Login /></div>
+  // Вход был: экран из кэша показываем сразу, токен обновится в фоне.
+  const signedIn = DEMO || !!session || (!authReady && storedSession)
+  if (!authReady && !signedIn) return null
+  if (!signedIn) return <div className="wrap"><Login /></div>
 
   const canWrite = !offline
   const t = today()
@@ -226,7 +245,6 @@ export default function App() {
       applied_on: f.applied_on || (needsDate ? t : null),
     })
   })
-  const onAsk = (r: NewRequest) => act(() => insert('agent_request', r))
   const onGrade = (c: Flashcard, knew: boolean) => act(async () => {
     const next = grade(c.box, knew, t)
     await update('flashcard', c.id, next)
@@ -239,6 +257,60 @@ export default function App() {
   const backLabel = TABS.find(x => x.id === tab)!.label
   const closeScreen = () => transition(() => setView(tab, null), 'back')
 
+  // На десктопе добавляем класс для фона с градиентами
+  useEffect(() => {
+    document.body.classList.toggle('dash-body', isDesktop && signedIn)
+    return () => document.body.classList.remove('dash-body')
+  }, [isDesktop, signedIn])
+
+  // Рендер вкладки для полноэкранного режима на десктопе (без TabBar и wrap)
+  const renderTab = (t: Tab) => {
+    if (!data) return null
+    if (t === 'today') return <Today data={data} canWrite={canWrite} goto={go} status={status}
+      onTaskDone={(id, done) => act(() => update('task', id, { is_done: done })).then(() => { if (done) toast({ text: 'Дело закрыто', action: { label: 'Вернуть', run: () => { act(() => update('task', id, { is_done: false })) } } }) })}
+      onAddTask={row => act(() => insert('task', { ...row, created_by: 'owner' }))} />
+    if (t === 'funnel') return <Funnel data={data} canWrite={canWrite} open={openVacancy} setOpen={setOpenVacancy} tab={ftab} setTab={setFtab}
+      onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAdd={onAddVacancy} onTrain={() => go('study', { cards: true })} onNumbers={() => go('insights')} />
+    if (t === 'inbox') return <Inbox data={data} canWrite={canWrite} onOpen={id => go('funnel', { vacancy: id })}
+      onDone={(id, done) => act(() => update('message', id, { is_done: done })).then(() => { if (done) toast({ text: 'Письмо разобрано', action: { label: 'Вернуть', run: () => { act(() => update('message', id, { is_done: false })) } } }) })} />
+    if (t === 'study') return <section className="scr">
+      <Title title="Учёба" />
+      <div className="seg">
+        <button className="chip" aria-pressed={!cards} onClick={() => setCards(false)}>Работы</button>
+        <button className="chip" aria-pressed={cards} onClick={() => setCards(true)}>Карточки{dueCards ? ' ' + dueCards : ''}</button>
+      </div>
+      {cards ? <Trainer data={data} canWrite={canWrite} onGrade={onGrade} /> : <Study data={data} canWrite={canWrite} focus={openWork}
+        onStatus={(id, s) => act(() => update('study_work', id, { status: s, updated_by: 'owner' }))}
+        onSave={(id, patch) => act(() => update('study_work', id, { ...patch, updated_by: 'owner' }))}
+        onAdd={w => act(async () => {
+          const discipline_id = await ensureByName('discipline', w.discipline.trim())
+          await insert('study_work', { discipline_id, code: slug('w'), title: w.title.trim(), status: w.status, deadline: w.deadline || null })
+        })} />}
+    </section>
+    if (t === 'money') return <Money data={data} canWrite={canWrite} open={openSub} setOpen={setOpenSub} onAdd={onAddSub} onUpdate={onUpdateSub} />
+    return null
+  }
+
+  const renderScreen = (s: Screen) => {
+    if (!data) return null
+    if (s === 'insights') return <Insights data={data} backLabel={backLabel} onBack={closeScreen} goto={go} />
+    if (s === 'settings') return <Settings data={data} backLabel={backLabel} onBack={closeScreen} onLogout={() => { clearCache(); supabase.auth.signOut() }} />
+    return null
+  }
+
+  // Десктоп: дашборд
+  if (isDesktop && signedIn) {
+    return <>
+      <Preloader done={!!data} />
+      <Dashboard data={data} canWrite={canWrite} goto={go} status={status} loaded={loaded}
+        error={error} onDismissError={() => setError('')}
+        onStatus={onStatus} onTaskDone={(id, done) => act(() => update('task', id, { is_done: done }))}
+        badges={badges} renderTab={renderTab} renderScreen={renderScreen} />
+    </>
+  }
+
+  // Мобилка: вкладки как раньше
+
   return (
     <div className="wrap">
       {error && <div className="banner" role="alert">Ошибка: {error} <button className="linkbtn" onClick={() => setError('')}>скрыть</button></div>}
@@ -248,9 +320,9 @@ export default function App() {
         : <>
           {tab === 'today' && <Today data={data} canWrite={canWrite} goto={go} status={status}
             onTaskDone={(id, done) => act(() => update('task', id, { is_done: done })).then(() => { if (done) toast({ text: 'Дело закрыто', action: { label: 'Вернуть', run: () => { act(() => update('task', id, { is_done: false })) } } }) })}
-            onAddTask={row => act(() => insert('task', { ...row, created_by: 'owner' }))} onAsk={onAsk} />}
+            onAddTask={row => act(() => insert('task', { ...row, created_by: 'owner' }))} />}
           {tab === 'funnel' && <Funnel data={data} canWrite={canWrite} open={openVacancy} setOpen={setOpenVacancy} tab={ftab} setTab={setFtab}
-            onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAdd={onAddVacancy} onAsk={onAsk} onTrain={() => go('study', { cards: true })} onNumbers={() => go('insights')} />}
+            onStatus={onStatus} onSave={onSave} onFollowed={onFollowed} onAdd={onAddVacancy} onTrain={() => go('study', { cards: true })} onNumbers={() => go('insights')} />}
           {tab === 'inbox' && <Inbox data={data} canWrite={canWrite} onOpen={id => go('funnel', { vacancy: id })}
             onDone={(id, done) => act(() => update('message', id, { is_done: done })).then(() => { if (done) toast({ text: 'Письмо разобрано', action: { label: 'Вернуть', run: () => { act(() => update('message', id, { is_done: false })) } } }) })} />}
           {tab === 'study' && <section className="scr">
@@ -267,7 +339,7 @@ export default function App() {
                 await insert('study_work', { discipline_id, code: slug('w'), title: w.title.trim(), status: w.status, deadline: w.deadline || null })
               })} />}
           </section>}
-          {tab === 'money' && <Money data={data} canWrite={canWrite} open={openSub} setOpen={setOpenSub} onAdd={onAddSub} onUpdate={onUpdateSub} onAsk={onAsk} />}
+          {tab === 'money' && <Money data={data} canWrite={canWrite} open={openSub} setOpen={setOpenSub} onAdd={onAddSub} onUpdate={onUpdateSub} />}
         </>}
 
       <TabBar items={TABS.map(x => ({ ...x, icon: Icons[x.id] }))} value={tab} onPick={pressTab} badges={badges} />

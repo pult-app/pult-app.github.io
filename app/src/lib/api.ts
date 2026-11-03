@@ -11,6 +11,24 @@ export const supabase = createClient(url ?? 'http://localhost', key ?? 'missing'
 
 const CACHE = 'pult-cache-v1'
 
+/**
+ * Был ли вход на этом устройстве. Читается синхронно из localStorage:
+ * благодаря этому экран из кэша рисуется сразу, не дожидаясь, пока Supabase
+ * обновит просроченный токен по сети. Ключ тот, что пишет supabase-js.
+ */
+export function hasStoredSession(): boolean {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+        const v = localStorage.getItem(k)
+        if (v && v.length > 10) return true
+      }
+    }
+  } catch { /* localStorage недоступен: считаем, что входа нет */ }
+  return false
+}
+
 export function readCache(): PultData | null {
   try {
     const raw = localStorage.getItem(CACHE)
