@@ -64,8 +64,9 @@
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 16px;
-  /* Карточки ряда одной высоты: под короткой не остаётся дыры.
-     Внутри карточки контент распределяется, поэтому пустого места не видно. */
+  /* Карточки ряда одной высоты, но НЕ бесконечно: у каждой свой предел.
+     Без него на 2K карточка растягивалась до высоты соседа в 900px,
+     и heatmap со шкалами разъезжались на всю эту высоту. */
   align-items: stretch;
   grid-auto-flow: row dense;
 }
@@ -74,6 +75,7 @@
   display: grid;
   align-content: start;
   height: 100%;
+  max-height: 520px;
   grid-auto-rows: min-content;
   min-width: 0;
 }
@@ -84,7 +86,7 @@
   align-content: stretch;
 }
 
-/* Внутренние блоки растягиваются: пустота внизу не читается как дыра */
+/* Внутренние блоки тянутся до низа карточки, но не дальше */
 .masonry > .widget > .widget-rows,
 .masonry > .widget > .widget-lessons,
 .masonry > .widget > .widget-pulse,
@@ -97,8 +99,10 @@
 .masonry > .widget > .chart,
 .masonry > .widget > .timeline,
 .masonry > .widget > .week {
-  align-content: stretch;
+  align-content: start;
   height: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 /* Порядок карточек: широкие аналитические и узкие статусные чередуются */

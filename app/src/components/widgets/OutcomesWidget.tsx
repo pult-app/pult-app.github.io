@@ -10,8 +10,10 @@ const LABEL: Record<Outcome, string> = { live: 'Живой ответ', reject: 
 const TONE: Record<Outcome, string> = {
   live: 'var(--tone-ok)',
   reject: 'var(--tone-hot)',
-  ack: 'var(--tone-warn)',
-  silent: 'color-mix(in srgb, var(--ink) 34%, transparent)',
+  // Автоответ и тишина - фиолетовые: это «нейтральная масса», а не сигнал,
+  // но на тёмном фиолетовый читается лучше серого и держит палитру
+  ack: 'color-mix(in srgb, var(--violet) 62%, var(--tone-warn))',
+  silent: 'color-mix(in srgb, var(--violet) 34%, transparent)',
 }
 
 const R = 42

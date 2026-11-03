@@ -613,11 +613,16 @@
   grid-auto-flow: column;
   grid-template-columns: repeat(var(--w), minmax(0, 1fr));
   gap: 4px;
+  /* Ограничение по высоте: иначе на 2K клетки растягивались до гигантских */
+  max-height: 132px;
 }
 
 .widget-heat .heat-cell {
   display: block;
   width: 100%;
+  /* Клетка не больше 22px: календарь читается, но не разъезжается на пол-экрана */
+  max-width: 22px;
+  max-height: 22px;
   aspect-ratio: 1;
   border: 0;
   padding: 0;

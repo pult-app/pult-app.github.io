@@ -179,10 +179,29 @@ export function AreaChartWidget({ data }: { data: PultData }) {
         style={{ height: H }} role="img"
         aria-label={`Отклики с ${fmtDate(range.from)} по ${fmtDate(range.to)}: ${total}, за прошлое окно ${totalPrev}`}>
         <defs>
+          {/* Заливка: фиолетовая у вершины, гаснет к низу */}
           <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--amber)" stopOpacity="0.38" />
-            <stop offset="100%" stopColor="var(--amber)" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="var(--violet-line)" stopOpacity="0.30" />
+            <stop offset="55%" stopColor="var(--violet-line)" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="var(--violet-line)" stopOpacity="0.01" />
           </linearGradient>
+
+          {/* Линия: градиент по горизонтали от фиолетового к янтарю.
+              Это связывает палитру: данные приходят фиолетовыми, а к «сегодня»
+              теплеют в сигнальный янтарь. Один цвет на тёмном смотрелся чужим. */}
+          <linearGradient id="areaStroke" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="var(--violet-line)" />
+            <stop offset="55%" stopColor="color-mix(in srgb, var(--violet-line) 55%, var(--amber))" />
+            <stop offset="100%" stopColor="var(--amber)" />
+          </linearGradient>
+
+          {/* Мягкое свечение под линией: размытая копия того же контура */}
+          <filter id="areaGlow" x="-8%" y="-40%" width="116%" height="200%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+            </feMerge>
+          </filter>
         </defs>
 
         {ticks.map(v => (
@@ -194,7 +213,9 @@ export function AreaChartWidget({ data }: { data: PultData }) {
 
         {prevLine && <path d={prevLine} className="area-line prev" fill="none" />}
         <path d={area} fill="url(#areaFill)" className="area-fill" />
-        <path d={line} className="area-line" pathLength={1} fill="none" />
+        {/* Свечение: тот же путь, размытый и полупрозрачный - даёт глубину без грязи */}
+        <path d={line} className="area-glow" fill="none" filter="url(#areaGlow)" pathLength={1} />
+        <path d={line} className="area-line" stroke="url(#areaStroke)" pathLength={1} fill="none" />
 
         <circle cx={px(activeIdx, buckets.length)} cy={py(active.n)} r="5.5" className="area-dot" />
         <line x1={px(activeIdx, buckets.length)} x2={px(activeIdx, buckets.length)} y1={PAD.t} y2={PAD.t + innerH} className="guide" />
