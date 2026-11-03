@@ -10,7 +10,6 @@ import { Avatar, Fold, ListRow } from './kit'
 import { Icons } from './icons'
 import { Title } from './native'
 import { toast, transition } from '../lib/ux'
-import type { NewRequest } from './AskClaude'
 
 export interface NewSub {
   name: string; amount: number; currency: string; unit: string; every: number; next_charge_on: string
@@ -24,13 +23,11 @@ interface Props {
   setOpen: (id: string | null) => void
   onAdd: (s: NewSub) => Promise<void>
   onUpdate: (id: string, patch: Record<string, unknown>) => Promise<void>
-  onAsk: (r: NewRequest) => Promise<void>
 }
 
 const CURRENCIES = ['RUB', 'USD', 'EUR']
 const REMIND = [{ v: 0, l: 'В день списания' }, { v: 1, l: 'За 1 день' }, { v: 3, l: 'За 3 дня' }, { v: 7, l: 'За 7 дней' }]
 const SUGGEST = ['iCloud+', 'Яндекс Плюс', 'Telegram Premium', 'ChatGPT Plus', 'Claude Pro', 'Spotify', 'YouTube Premium', 'Кинопоиск', 'VK Музыка', 'СберПрайм', 'Т-Банк Pro', 'Google One', 'Netflix', 'JetBrains', 'Discord Nitro', 'VPN']
-const SCAN_PROMPT = 'Найди в моей почте подписки и регулярные списания: сервис, сумма, валюта, период, дата ближайшего списания и ссылка на управление. Ответ списком, чтобы я добавил нужные в пульт. Ничего не меняй и не отправляй.'
 const STATUS_TONE: Record<SubStatus, string> = { active: 'win', trial: 'action', paused: 'wait', cancelled: 'closed' }
 const statusLabel = (s: SubStatus) => SUB_STATUSES.find(x => x.id === s)!.label
 const periodId = (s: { unit: string; every: number }) => PERIODS.find(p => p.unit === s.unit && p.every === s.every)?.id ?? 'custom'
@@ -218,12 +215,11 @@ function SubScreen({ s, canWrite, onBack, onUpdate }: { s: Subscription; canWrit
   )
 }
 
-export function Money({ data, canWrite, open, setOpen, onAdd, onUpdate, onAsk }: Props) {
+export function Money({ data, canWrite, open, setOpen, onAdd, onUpdate }: Props) {
   const t = today()
   const subs = data.subscriptions
   const sum = useMemo(() => summarize(subs, t), [subs, t])
   const groups = useMemo(() => groupSubs(subs, t), [subs, t])
-  const [scan, setScan] = useState('')
   const openSub = open ? subs.find(s => s.id === open) : null
   if (openSub) return <SubScreen key={openSub.id} s={openSub} canWrite={canWrite} onBack={() => transition(() => setOpen(null), 'back')} onUpdate={onUpdate} />
 
@@ -237,13 +233,8 @@ export function Money({ data, canWrite, open, setOpen, onAdd, onUpdate, onAsk }:
       </div>
     </section>)
 
-  const find = async () => {
-    try { await onAsk({ kind: 'custom', prompt: SCAN_PROMPT, vacancy_id: null }); setScan('Отправил Claude, список придёт пушем') }
-    catch { setScan('Не отправилось, попробуй ещё раз') }
-  }
   const open1 = (id: string) => { transition(() => setOpen(id), 'fwd') }
   const nc = sum.nextCharge
-  // В плитке крупно сумма в основной валюте, остальные валюты мелко рядом с подписью.
   const main = (x: Totals) => fmtMoney(x[sum.primary] ?? 0, sum.primary)
   const rest = (x: Totals) => { const o = Object.keys(x).filter(k => k !== sum.primary && x[k] > 0).map(k => fmtMoney(x[k], k)); return o.length ? ' + ' + o.join(' + ') : '' }
   const trialSum = subs.filter(s => s.status === 'trial').reduce<Record<string, number>>((a, s) => { a[s.currency] = (a[s.currency] ?? 0) + s.amount; return a }, {})
@@ -268,8 +259,6 @@ export function Money({ data, canWrite, open, setOpen, onAdd, onUpdate, onAsk }:
           <div className="text">Добавь подписки: пульт напомнит о списании и посчитает расходы в месяц.</div>
           <div className="acts">
             {canWrite && <button className="hbtn" onClick={() => document.getElementById('money-add')?.scrollIntoView({ behavior: 'smooth' })}>{Icons.plus}Добавить</button>}
-            {canWrite && !scan && <button className="hbtn ghost" onClick={find}>{Icons.spark}Найти в почте</button>}
-            {scan && <span className="sent">{scan}</span>}
           </div>
         </div>
       ) : (
@@ -312,10 +301,6 @@ export function Money({ data, canWrite, open, setOpen, onAdd, onUpdate, onAsk }:
           <Fold id="money-add-fold" title="Добавить подписку" defaultOpen={subs.length === 0}>
             <AddForm onAdd={onAdd} t={t} />
           </Fold>
-        </div>)}
-      {canWrite && subs.length > 0 && (
-        <div className="askline-row">
-          {!scan ? <button className="btn ghost" onClick={find}>{Icons.spark}Найти новые подписки в почте</button> : <p className="ask-note">{scan}</p>}
         </div>)}
     </section>
   )

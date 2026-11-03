@@ -1,0 +1,246 @@
+/* Пульт — Живой слой (02.11.2026).
+   Прожектор за курсором, появление по скроллу, наклон карточек, скользящий индикатор.
+   Появление идёт анимацией, наклон — переходом: так они не спорят за transform. */
+
+/* ---------- Прожектор за курсором ----------
+   Полосы по кромкам карточек были из-за того, что пятно ходило ПОД карточками
+   с backdrop-filter: браузер на каждом кадре пересэмплировал подложку и
+   оставлял следы. Пятно поднято НАД контентом и складывается в режиме
+   plus-lighter - тогда оно не трогает размытие карточек вообще. */
+.dash-spot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 620px;
+  height: 620px;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 50%;
+  opacity: 0;
+  mix-blend-mode: plus-lighter;
+  /* Слой выделен заранее: без этого браузер пересобирает его каждый кадр */
+  transform: translate3d(-9999px, -9999px, 0);
+  background: radial-gradient(circle at 50% 50%,
+    color-mix(in srgb, var(--amber) 7%, transparent) 0%,
+    color-mix(in srgb, var(--amber) 3%, transparent) 40%,
+    transparent 70%);
+  transition: opacity 700ms var(--ease-out);
+}
+
+.dash-spot.on {
+  opacity: 1;
+}
+
+[data-theme="dark"] .dash-spot {
+  background: radial-gradient(circle at 50% 50%,
+    color-mix(in srgb, var(--amber) 6%, transparent) 0%,
+    color-mix(in srgb, var(--amber) 2%, transparent) 40%,
+    transparent 70%);
+}
+
+/* ---------- Карточки: база, появление, отклик на курсор ---------- */
+.widget-grid > * {
+  --gx: 50%;
+  --gy: 50%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .widget-grid > * {
+    transition: transform 280ms var(--ease-out), box-shadow 280ms var(--ease-out);
+  }
+
+  /* Скрыты, пока наблюдатель не отметит появление */
+  .widget-grid.reveal > * {
+    opacity: 0;
+  }
+
+  .widget-grid.reveal > *.in {
+    opacity: 1;
+    animation: card-in 640ms var(--ease-out) backwards;
+    animation-delay: calc(var(--d, 0) * 80ms);
+  }
+
+  @keyframes card-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 24px, 0) scale(0.984);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* ---------- Отклик карточки ----------
+   Наклон в 3D убран: вращение элемента с backdrop-filter заставляло браузер
+   пересобирать слой размытия и оставляло полупрозрачные полосы по кромкам.
+   will-change тоже убран: слой создавался ровно в момент наведения и давал флеш,
+   а селектор бил по .masonry - наведение на одну плитку промоутило весь bento-блок.
+   Объём даёт подъём в glass.css. */
+
+/* ---------- Скользящий индикатор в боковой панели ---------- */
+.sidebar-top {
+  position: relative;
+}
+
+.sidebar-lens {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 48px;
+  height: 48px;
+  margin-left: -24px;
+  border-radius: 16px;
+  pointer-events: none;
+  z-index: 0;
+  background: color-mix(in srgb, var(--amber) 16%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--amber) 34%, transparent),
+    0 8px 22px -12px color-mix(in srgb, var(--amber) 70%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar-lens {
+    transition: transform 340ms var(--ease-spring);
+  }
+}
+
+.sidebar-btn {
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar-btn.active svg {
+    filter: drop-shadow(0 0 7px color-mix(in srgb, var(--amber) 70%, transparent));
+  }
+}
+
+/* ---------- Перетекание между экранами ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .dash-main,
+  .dash-tab {
+    animation: view-in 420ms var(--ease-out) both;
+  }
+
+  @keyframes view-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 12px, 0);
+    }
+  }
+}
+
+/* ---------- Дыхание: кольцо живёт ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .widget-ring svg {
+    animation: ring-breathe 5.4s var(--ease-in-out) infinite;
+  }
+
+  @keyframes ring-breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+  }
+
+  .widget-hero .title {
+    animation: hero-rise 700ms var(--ease-out) both;
+  }
+
+  @keyframes hero-rise {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 10px, 0);
+    }
+  }
+}
+
+/* ---------- Магнитные кнопки: движение сглаживается переходом ---------- */
+/* Магнитная кнопка: JS пишет transform каждый кадр, поэтому transition по
+   transform здесь запрещён - каждое новое значение перезапускало переход и
+   кнопка резиново отставала, а на границе радиуса дёргалась назад.
+   Плавность даёт само сглаживание курсора в rAF. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .widget-hero .hbtn,
+  .widget-pulse .ptile {
+    transition:
+      box-shadow var(--dur-hover) var(--ease-out),
+      background-color var(--dur-hover) var(--ease-out),
+      border-color var(--dur-hover) var(--ease-out);
+  }
+
+  /* Вдавливание остаётся, но только на нажатие */
+  .widget-hero .hbtn:active,
+  .widget-pulse .ptile:active {
+    transition: transform var(--dur-press) var(--ease-out);
+  }
+}
+
+/* ---------- Перетекание раскладки при открытии панели деталей ----------
+   Снимок старого и нового вида делает браузер, поэтому сетка не пересчитывается на каждом кадре. */
+.widget-grid {
+  view-transition-name: dash-grid;
+}
+
+.detail-pane {
+  view-transition-name: dash-pane;
+}
+
+/* Когда View Transitions работают, собственная анимация панели и margin не нужны */
+.has-vt .detail-pane,
+.has-vt .detail-pane.out {
+  animation: none;
+}
+
+.has-vt .dash-main {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(dash-grid),
+  ::view-transition-old(dash-grid),
+  ::view-transition-new(dash-grid) {
+    animation-duration: 380ms;
+    animation-timing-function: var(--ease-out);
+  }
+
+  ::view-transition-new(dash-pane) {
+    animation: pane-vt-in 340ms var(--ease-out) both;
+  }
+
+  ::view-transition-old(dash-pane) {
+    animation: pane-vt-out 260ms var(--ease-out) both;
+  }
+
+  @keyframes pane-vt-in {
+    from {
+      opacity: 0;
+      transform: translate3d(56px, 0, 0);
+    }
+  }
+
+  @keyframes pane-vt-out {
+    to {
+      opacity: 0;
+      transform: translate3d(56px, 0, 0);
+    }
+  }
+}
+
+/* ---------- Уменьшение движения ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .dash-spot,
+  .sidebar-lens {
+    display: none;
+  }
+
+  .widget-grid.reveal > * {
+    opacity: 1;
+  }
+
+  .dash-main,
+  .dash-tab,
+  .widget-ring svg,
+  .widget-hero .title {
+    animation: none;
+  }
+}

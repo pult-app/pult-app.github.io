@@ -6,7 +6,6 @@ import { weekCount, WEEK_GOAL } from '../lib/insights'
 import { LESSON_TYPES, lessonsFor, nextStudyDay } from '../lib/schedule'
 import type { PultData, TaskKind } from '../lib/types'
 import { Empty } from './ui'
-import { AskLine, prepPrompt, RequestList, type NewRequest } from './AskClaude'
 import { Fold, ListRow } from './kit'
 import { Icons } from './icons'
 import { Swipe, Title } from './native'
@@ -19,16 +18,14 @@ interface Props {
   status: { text: string; cls: string }
   onTaskDone: (id: string, done: boolean) => Promise<void>
   onAddTask: (row: { title: string; due_date: string; due_time: string | null; kind: TaskKind }) => Promise<void>
-  onAsk: (r: NewRequest) => Promise<void>
 }
 
 const greetWord = (h: number) => h < 5 ? 'Доброй ночи' : h < 12 ? 'Доброе утро' : h < 18 ? 'Добрый день' : 'Добрый вечер'
 const HOT_CAP = 6
 
 /** Главное дело по поиску работы: тёмная карточка сверху (дизайн v4). */
-function NextStepCard({ data, canWrite, goto, onAsk }: Pick<Props, 'data' | 'canWrite' | 'goto' | 'onAsk'>) {
+function NextStepCard({ data, goto }: Pick<Props, 'data' | 'goto'>) {
   const t = today()
-  const [sent, setSent] = useState('')
   const x = nextStep(data, t)
   if (!x) {
     const waiting = data.vacancies.filter(v => funnelTab(v) === 'wait').length
@@ -43,19 +40,13 @@ function NextStepCard({ data, canWrite, goto, onAsk }: Pick<Props, 'data' | 'can
   }
   const { v, st } = x
   const co = companyName(v)
-  const ask = async () => {
-    try { await onAsk({ kind: 'prep', prompt: prepPrompt(v, co), vacancy_id: v.id }); setSent('Отправил Claude, ответ придёт пушем') }
-    catch { setSent('Не отправилось, попробуй ещё раз') }
-  }
   return (
     <div className="hero-card">
       <div className="kicker"><i />СЛЕДУЮЩИЙ ШАГ</div>
       <div className="title">{co}: {st.label.charAt(0).toLowerCase() + st.label.slice(1)}</div>
       <div className="text">{v.next_step || st.hint}</div>
       <div className="acts">
-        {canWrite && !sent && <button className="hbtn" onClick={ask}>{Icons.spark}Подготовь меня</button>}
         <button className="hbtn ghost" onClick={() => goto('funnel', { vacancy: v.id })}>Открыть</button>
-        {sent && <span className="sent">{sent}</span>}
       </div>
     </div>
   )
@@ -113,7 +104,7 @@ function Lessons({ data }: { data: PultData }) {
   return <Fold id="today-lessons" title="Пары" meta={meta}><div className="rows">{rows}</div></Fold>
 }
 
-export function Today({ data, canWrite, goto, status, onTaskDone, onAddTask, onAsk }: Props) {
+export function Today({ data, canWrite, goto, status, onTaskDone, onAddTask }: Props) {
   const t = today()
   const h = +nowHM().slice(0, 2)
   const dateLine = new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow', weekday: 'long', day: 'numeric', month: 'long' })
@@ -168,7 +159,7 @@ export function Today({ data, canWrite, goto, status, onTaskDone, onAddTask, onA
         <button className={'pchip ' + status.cls} onClick={() => goto('settings')}>{status.text}</button>
       </div>
 
-      <NextStepCard data={data} canWrite={canWrite} goto={goto} onAsk={onAsk} />
+      <NextStepCard data={data} goto={goto} />
       <Pulse data={data} goto={goto} />
       {data.schedule && <Lessons data={data} />}
 
@@ -188,11 +179,6 @@ export function Today({ data, canWrite, goto, status, onTaskDone, onAddTask, onA
             <ListRow key={i} lead={fmtDate(x.date)} title={x.title} sub={fmtDow(x.date) + ' · ' + TASK_KINDS[x.kind]} onOpen={x.goto ? () => open(x) : undefined} />))}
           </div>
         </Fold>)}
-
-      <Fold id="today-ask" title="Спросить Claude" meta={data.requests.filter(r => !r.vacancy_id && (r.status === 'queued' || r.status === 'working')).length ? 'в работе' : ''} defaultOpen={false}>
-        <AskLine vacancyId={null} placeholder="Что подтянуть к собесу?" canWrite={canWrite} onAsk={onAsk} />
-        <RequestList items={data.requests.filter(r => !r.vacancy_id).slice(0, 3)} />
-      </Fold>
 
       {canWrite && (
         <Fold id="today-add" title="Добавить дело" defaultOpen={false}>
