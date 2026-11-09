@@ -165,12 +165,14 @@
 /* Пятна фона: янтарная база плюс фиолетовый акцент.
    Фиолетовое пятно делаем самым крупным после янтарного: оно даёт глубину
    и «дорогой» холод, но остаётся атмосферой - сигнальным цветом работает янтарь. */
+/* Значения color-mix выше 100% невалидны: браузер выбрасывает всё правило
+   и пятно не рисуется вообще. Держим в пределах 100%. */
 .dash-bg i:nth-child(1) {
   width: 64vw;
   height: 64vw;
   top: -24vw;
   left: -14vw;
-  background: radial-gradient(circle at 42% 42%, color-mix(in srgb, var(--warm) 130%, transparent), transparent 70%);
+  background: radial-gradient(circle at 42% 42%, var(--warm), transparent 70%);
   animation: orb-a 26s var(--ease-in-out) infinite;
 }
 
@@ -179,7 +181,7 @@
   height: 62vw;
   top: -16vw;
   right: -16vw;
-  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--cool) 135%, transparent), transparent 70%);
+  background: radial-gradient(circle at 50% 50%, var(--cool), transparent 70%);
   animation: orb-b 31s var(--ease-in-out) infinite;
 }
 
