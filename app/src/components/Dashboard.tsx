@@ -246,6 +246,7 @@ export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, err
   }
 
   return (
+    <>
     <div className="dash" ref={rootRef}><Backdrop />
       <Sidebar tab="dashboard" badges={badges} statusCls={status.cls} statusText={status.text} loaded={loaded} onPick={setView} />
 
@@ -332,19 +333,21 @@ export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, err
         </div>
       </div>
 
-      {/* DetailPane */}
-      {detail && (
-        <>
-          <div className="detail-overlay" onClick={closeDetail} />
-          <div className="detail-pane glass-deep">
-            <button className="detail-close" onClick={closeDetail} aria-label="Закрыть">×</button>
-            {detail.type === 'vacancy' && <VacancyDetail data={data} id={detail.id} />}
-            {detail.type === 'message' && <MessageDetail data={data} id={detail.id} onDone={onMessageDone} />}
-            {detail.type === 'work' && <WorkDetail data={data} id={detail.id} />}
-            {detail.type === 'sub' && <SubDetail data={data} id={detail.id} />}
-          </div>
-        </>
-      )}
+      {/* Модалка вне .dash: внутри grid с колонками 96px + 1fr она падала
+          в узкую колонку сайдбара и сжималась до 96px. */}
     </div>
+
+    {detail && (
+      <div className="detail-overlay" onClick={closeDetail} role="dialog" aria-modal="true">
+        <div className="detail-pane glass-deep" onClick={e => e.stopPropagation()}>
+          <button className="detail-close" onClick={closeDetail} aria-label="Закрыть">×</button>
+          {detail.type === 'vacancy' && <VacancyDetail data={data} id={detail.id} />}
+          {detail.type === 'message' && <MessageDetail data={data} id={detail.id} onDone={onMessageDone} />}
+          {detail.type === 'work' && <WorkDetail data={data} id={detail.id} />}
+          {detail.type === 'sub' && <SubDetail data={data} id={detail.id} />}
+        </div>
+      </div>
+    )}
+    </>
   )
 }

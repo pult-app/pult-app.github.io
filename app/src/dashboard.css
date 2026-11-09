@@ -30,10 +30,8 @@
   transition: none;
 }
 
-/* Когда DetailPane открыта — освобождаем место */
-.dash-main.pane-open {
-  margin-right: 420px;
-}
+/* Дашборд больше не сжимается: детали открываются модальным окном поверх.
+   Отступ под колонку убран, сетка не пересчитывается. */
 
 /* ---------- Полноэкранная вкладка: НЕ перекрывает сайдбар, а течёт в колонке 2 ---------- */
 .dash-tab {
@@ -175,12 +173,7 @@
   }
 }
 
-/* Ноутбуки: панель деталей уже */
-@media (max-width: 1340px) {
-  .dash-main.pane-open {
-    margin-right: 380px;
-  }
-}
+/* Отступы на узком десктопе: только контент, геометрия не меняется */
 
 /* ---------- Боковая панель: плавающий остров ----------
    Не полоса во всю высоту и не прижата к краю: отдельный стеклянный остров
@@ -412,44 +405,22 @@
   line-height: 1.2;
 }
 
-/* ---------- DetailPane ---------- */
-.detail-pane {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 420px;
-  height: 100vh;
-  overflow-y: auto;
-  padding: 20px;
-  z-index: 30;
-  animation: pane-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.detail-pane.out {
-  animation: pane-out 0.28s ease-in forwards;
-}
-
-@keyframes pane-in {
-  from {
-    transform: translateX(40px);
-    opacity: 0;
-  }
-}
-
-@keyframes pane-out {
-  to {
-    transform: translateX(40px);
-    opacity: 0;
-  }
-}
-
-/* Затемнение */
+/* ---------- Модальное окно деталей ----------
+   Боковая колонка на всю высоту смотрелась обрубком: пустой низ, свой скролл,
+   прижатый к краю текст. Центрированное окно с воздухом вокруг читается
+   как обычный диалог в стилистике сайта. */
 .detail-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 25;
-  background: rgba(0, 0, 0, 0.08);
-  animation: overlay-in 0.35s ease both;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  background: rgba(10, 8, 6, 0.42);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: overlay-in 220ms var(--ease-out) both;
 }
 
 @keyframes overlay-in {
@@ -458,39 +429,93 @@
   }
 }
 
+.detail-pane {
+  position: relative;
+  /* Явная ширина: внутри flex width:100% схлопывался до ширины содержимого
+     и модалка сжималась в мелкий квадрат. */
+  flex: 0 0 auto;
+  width: 560px;
+  max-width: 100%;
+  max-height: min(680px, calc(100vh - 80px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 26px 28px 28px;
+  border-radius: 22px;
+  z-index: 101;
+  animation: pane-in 280ms var(--ease-out) both;
+}
+
+.detail-pane.out {
+  animation: pane-out 200ms var(--ease-in-out) forwards;
+}
+
+@keyframes pane-in {
+  from {
+    transform: translate3d(0, 16px, 0) scale(0.98);
+    opacity: 0;
+  }
+}
+
+@keyframes pane-out {
+  to {
+    transform: translate3d(0, 10px, 0) scale(0.985);
+    opacity: 0;
+  }
+}
+
 /* Закрыть */
 .detail-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 36px;
-  height: 36px;
-  border-radius: 18px;
+  top: 14px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
   border: 0;
-  background: rgba(0, 0, 0, 0.04);
-  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--muted);
   display: grid;
   place-items: center;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 20px;
+  line-height: 1;
   z-index: 5;
+  transition: color var(--dur-hover) var(--ease-out),
+    background-color var(--dur-hover) var(--ease-out);
 }
 
 .detail-close:hover {
-  background: rgba(0, 0, 0, 0.08);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
-[data-theme="dark"] .detail-close {
-  background: rgba(255, 255, 255, 0.06);
+.detail-close:active {
+  transform: scale(0.93);
 }
 
-[data-theme="dark"] .detail-close:hover {
-  background: rgba(255, 255, 255, 0.10);
-}
-
+/* Первая строка модалки не должна налезать на крестик */
 .detail-inner {
   display: grid;
-  gap: 16px;
+  gap: 14px;
+  padding-right: 34px;
+}
+
+.detail-inner > .widget-head {
+  padding-right: 0;
+}
+
+.detail-inner .widget-head h3 {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+/* Заголовок модалки крупнее обычных надзаголовков виджетов */
+.detail-inner > .widget-head:first-child h3 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--ink);
 }
 
 /* ---------- Адаптив: скрываем всё на мобилке ---------- */

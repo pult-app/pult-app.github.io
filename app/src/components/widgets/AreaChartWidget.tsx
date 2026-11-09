@@ -9,7 +9,8 @@ import type { PultData } from '../../lib/types'
 // Длинный размах собираем в корзины по 2-5 дней, чтобы точек было 10-14 и линия читалась.
 
 const H = 200
-const PAD = { l: 36, r: 14, t: 16, b: 26 }
+/* Правый отступ шире: последняя точка с ореолом упиралась в кромку */
+const PAD = { l: 36, r: 26, t: 16, b: 26 }
 const TARGET_POINTS = 13
 
 function smooth(pts: { x: number; y: number }[]) {

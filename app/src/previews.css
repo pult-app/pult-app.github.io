@@ -683,6 +683,33 @@
   }
 }
 
+/* Старая просрочка: одна тихая строка вместо завала в «Горит» */
+.hot-archive {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--dur-hover) var(--ease-out);
+}
+
+.hot-archive-go {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hot-archive:hover,
+  .hot-archive:hover .hot-archive-go {
+    color: var(--amber);
+  }
+}
+
 /* ==================== Быстрое действие в панели деталей ==================== */
 .detail-action {
   display: inline-flex;
