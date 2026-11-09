@@ -69,8 +69,8 @@ export function SpeedWidget({ data }: { data: PultData }) {
             <span className="sp-name">{c.label}</span>
             <span className="sp-track">
               <i style={{
-                /* Ненулевые полосы видимы всегда, нулевые оставляют тонкую базу */
-                width: c.n ? Math.max(18, (c.n / maxN) * 100) + '%' : '0%',
+                /* Нулевая строка тоже видна: тонкая база вместо пустого места */
+                width: c.n ? Math.max(18, (c.n / maxN) * 100) + '%' : '4px',
                 '--i': i
               } as CSSProperties} />
             </span>

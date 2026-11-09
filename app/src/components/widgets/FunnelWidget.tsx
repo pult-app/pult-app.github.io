@@ -62,7 +62,12 @@ export function FunnelWidget({ data, goto }: { data: PultData; goto: Go }) {
             </span>
           </span>
           <span className="fs-track">
-            <i style={{ width: (raw[i] / total) * 100 + '%', '--i': i } as CSSProperties} />
+            {/* Нулевая ступень оставляет видимую базу: иначе строка читается
+                как незагрузившийся график, а не как честный ноль */}
+            <i style={{
+              width: raw[i] ? (raw[i] / total) * 100 + '%' : '4px',
+              '--i': i
+            } as CSSProperties} />
           </span>
         </button>
       ))}

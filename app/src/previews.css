@@ -673,11 +673,48 @@
 
   .mail-card,
   .mc-done,
-  .sub-row {
+  .sub-row,
+  .detail-action {
     transition: none;
   }
 
   .wd-col i {
     animation: none;
   }
+}
+
+/* ==================== Быстрое действие в панели деталей ==================== */
+.detail-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--tone-ok-bg);
+  color: var(--tone-ok);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  justify-self: start;
+  transition: transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-hover) var(--ease-out);
+}
+
+.detail-action svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .detail-action:hover {
+    background: color-mix(in srgb, var(--tone-ok) 22%, transparent);
+  }
+}
+
+.detail-action:active {
+  transform: scale(0.97);
 }

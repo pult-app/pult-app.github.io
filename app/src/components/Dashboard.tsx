@@ -32,6 +32,10 @@ interface Props {
   // Колбэки из App
   onStatus: (v: Vacancy, s: VacancyStatus) => Promise<void>
   onTaskDone: (id: string, done: boolean) => Promise<void>
+  /** Разобрать письмо прямо из панели деталей, не уходя с дашборда. */
+  onMessageDone?: (id: string, done: boolean) => void
+  /** Отметить «напомнил HR» прямо из панели вакансии. */
+  onFollowed?: (id: string) => void
   badges: Partial<Record<Tab, number>>
   // Для полноэкранных вкладок
   renderTab: (tab: Tab) => ReactNode
@@ -86,8 +90,8 @@ function VacancyDetail({ data, id }: { data: PultData; id: string }) {
   )
 }
 
-/** Панель с деталями письма. */
-function MessageDetail({ data, id }: { data: PultData; id: string }) {
+/** Панель с деталями письма: просмотр плюс действие прямо здесь. */
+function MessageDetail({ data, id, onDone }: { data: PultData; id: string; onDone?: (id: string, done: boolean) => void }) {
   const m = data.messages.find(x => x.id === id)
   if (!m) return null
   return (
@@ -96,8 +100,18 @@ function MessageDetail({ data, id }: { data: PultData; id: string }) {
       <span className="wtag action" style={{ justifySelf: 'start' }}>{KINDS[m.kind]?.label || m.kind}</span>
       <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}>{m.summary}</p>
       {m.action && <div style={{ fontSize: 13, color: 'var(--accent-text)' }}>Действие: {m.action}</div>}
-      {m.deadline && <div style={{ fontSize: 13, color: days(today(), m.deadline) <= 0 ? 'var(--hot)' : 'var(--muted)' }}>Дедлайн: {fmtDate(m.deadline)}</div>}
+      {m.deadline && <div style={{ fontSize: 13, color: days(today(), m.deadline) <= 0 ? 'var(--tone-hot)' : 'var(--muted)' }}>Дедлайн: {fmtDate(m.deadline)}</div>}
       {m.subject && <div style={{ fontSize: 12, color: 'var(--muted)' }}>Тема: {m.subject}</div>}
+
+      {/* Быстрое действие: разобрать письмо, не уходя с дашборда */}
+      {onDone && !m.is_done && (
+        <button className="detail-action" onClick={() => onDone(m.id, true)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M5 12l5 5 9-10" />
+          </svg>
+          Разобрано
+        </button>
+      )}
     </div>
   )
 }
@@ -146,7 +160,7 @@ function SubDetail({ data, id }: { data: PultData; id: string }) {
   )
 }
 
-export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, error, onDismissError, badges, renderTab, renderScreen }: Props) {
+export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, error, onDismissError, onMessageDone, badges, renderTab, renderScreen }: Props) {
   const [view, setView] = useState<View>('dashboard')
   const [detail, setDetail] = useState<Detail | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -325,7 +339,7 @@ export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, err
           <div className="detail-pane glass-deep">
             <button className="detail-close" onClick={closeDetail} aria-label="Закрыть">×</button>
             {detail.type === 'vacancy' && <VacancyDetail data={data} id={detail.id} />}
-            {detail.type === 'message' && <MessageDetail data={data} id={detail.id} />}
+            {detail.type === 'message' && <MessageDetail data={data} id={detail.id} onDone={onMessageDone} />}
             {detail.type === 'work' && <WorkDetail data={data} id={detail.id} />}
             {detail.type === 'sub' && <SubDetail data={data} id={detail.id} />}
           </div>

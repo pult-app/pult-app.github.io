@@ -305,6 +305,7 @@ export default function App() {
       <Dashboard data={data} canWrite={canWrite} goto={go} status={status} loaded={loaded}
         error={error} onDismissError={() => setError('')}
         onStatus={onStatus} onTaskDone={(id, done) => act(() => update('task', id, { is_done: done }))}
+        onMessageDone={(id, done) => act(() => update('message', id, { is_done: done })).then(() => { if (done) toast({ text: 'Письмо разобрано', action: { label: 'Вернуть', run: () => { act(() => update('message', id, { is_done: false })) } } }) })}
         badges={badges} renderTab={renderTab} renderScreen={renderScreen} />
     </>
   }
