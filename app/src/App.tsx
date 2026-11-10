@@ -100,6 +100,9 @@ export default function App() {
   // Вход уже был: экран из кэша рисуется сразу, не дожидаясь, пока Supabase
   // обновит просроченный токен по сети.
   const [storedSession] = useState(() => !DEMO && hasStoredSession())
+  // Прелоадер ушёл: только теперь запускаем вход дашборда. Иначе анимации
+  // проигрывались под ним и зритель видел уже готовый экран.
+  const [plGone, setPlGone] = useState(false)
   const [data, setData] = useState<PultData | null>(() => DEMO ? null : readCache())
   const [offline, setOffline] = useState(!navigator.onLine)
   const [error, setError] = useState('')
@@ -301,8 +304,9 @@ export default function App() {
   // Десктоп: дашборд
   if (isDesktop && signedIn) {
     return <>
-      <Preloader done={!!data} />
+      <Preloader done={!!data} onGone={() => setPlGone(true)} />
       <Dashboard data={data} canWrite={canWrite} goto={go} status={status} loaded={loaded}
+        reveal={plGone}
         error={error} onDismissError={() => setError('')}
         onStatus={onStatus} onTaskDone={(id, done) => act(() => update('task', id, { is_done: done }))}
         onMessageDone={(id, done) => act(() => update('message', id, { is_done: done })).then(() => { if (done) toast({ text: 'Письмо разобрано', action: { label: 'Вернуть', run: () => { act(() => update('message', id, { is_done: false })) } } }) })}

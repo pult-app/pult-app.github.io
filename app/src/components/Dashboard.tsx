@@ -37,6 +37,8 @@ interface Props {
   /** Отметить «напомнил HR» прямо из панели вакансии. */
   onFollowed?: (id: string) => void
   badges: Partial<Record<Tab, number>>
+  /** Прелоадер ушёл: только теперь играем вход дашборда. */
+  reveal?: boolean
   // Для полноэкранных вкладок
   renderTab: (tab: Tab) => ReactNode
   renderScreen: (screen: Screen) => ReactNode
@@ -160,7 +162,7 @@ function SubDetail({ data, id }: { data: PultData; id: string }) {
   )
 }
 
-export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, error, onDismissError, onMessageDone, badges, renderTab, renderScreen }: Props) {
+export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, error, onDismissError, onMessageDone, badges, reveal = true, renderTab, renderScreen }: Props) {
   const [view, setView] = useState<View>('dashboard')
   const [detail, setDetail] = useState<Detail | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -242,7 +244,7 @@ export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, err
 
   return (
     <>
-    <div className="dash dash-born" ref={rootRef}><Backdrop />
+    <div className={'dash' + (reveal ? ' dash-born' : ' dash-wait')} ref={rootRef}><Backdrop />
       <Sidebar tab="dashboard" badges={badges} statusCls={status.cls} statusText={status.text} loaded={loaded} onPick={setView} />
 
       <div className={'dash-main' + (detail ? ' pane-open' : '')} key="dash">

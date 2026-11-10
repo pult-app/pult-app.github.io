@@ -170,9 +170,6 @@
   gap: 16px;
   align-content: start;
   padding: 28px 28px 40px;
-  /* Каркас обязан заполнить ВЕСЬ экран: раньше он доходил до середины,
-     и прелоадер выглядел обрубленным. min-height в процентах не работал,
-     потому что родитель absolute без явной высоты - берём vh. */
   min-height: 100vh;
   overflow: hidden;
 }
@@ -201,19 +198,27 @@
   box-shadow:
     inset 0 0 0 1px rgba(255, 245, 235, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.07);
-  /* Каждая карточка появляется со своей задержкой: экран собирается */
-  animation: pl-card-in 620ms var(--ease-out) both;
-  animation-delay: calc(var(--i) * 55ms + 80ms);
+  /* Появление быстрое: 400мс и шаг 40мс. Было 620мс и 55мс -
+     экран собирался слишком долго и зритель ждал. */
+  animation: pl-card-in 400ms var(--ease-out) both;
+  animation-delay: calc(var(--i) * 40ms + 40ms);
 }
 
 .pl-card.w-2 { grid-column: span 2; }
 .pl-card.w-3 { grid-column: span 3; }
+.pl-card.w-4 { grid-column: span 4; }
 .pl-card.w-6 { grid-column: span 6; }
+
+/* Живая форма: блоки стоят с лёгким наклоном и своей высотой,
+   без прямой линии по верхнему краю - иначе силуэт выглядит шаблоном. */
+.pl-card {
+  transform: rotateZ(var(--tilt, 0deg));
+}
 
 @keyframes pl-card-in {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.985);
+    transform: translateY(18px) scale(0.97) rotateZ(var(--tilt, 0deg));
   }
 }
 
@@ -416,20 +421,101 @@
 }
 
 /* ---------- Рождение дашборда ----------
-   Живой экран проявляется поверх каркаса: мягкий подъём и фокус,
-   а не рывок. Скелетон под ним уже в той же геометрии. */
+   Живой экран проявляется поверх ушедшего каркаса. Селектор бьёт и в
+   .widget-grid, и в .masonry: карточки лежат вторым уровнем, и прямой
+   потомок до них не достаёт. */
 @media (prefers-reduced-motion: no-preference) {
-  .dash-born .widget-grid > * {
-    animation: dash-born 620ms var(--ease-out) both;
-    animation-delay: calc(var(--d, 0) * 55ms + 40ms);
+  .dash-born .widget-grid > *,
+  .dash-born .masonry > * {
+    animation: dash-born 560ms var(--ease-out) both;
+  }
+
+  /* Ступенчатая задержка через счётчик: --d выставляется только детям
+     .widget-grid, а карточки bento лежат в .masonry и оставались без него. */
+  .dash-born .widget-grid > *:nth-child(1),
+  .dash-born .masonry > *:nth-child(1) { animation-delay: 0ms; }
+  .dash-born .widget-grid > *:nth-child(2),
+  .dash-born .masonry > *:nth-child(2) { animation-delay: 45ms; }
+  .dash-born .widget-grid > *:nth-child(3),
+  .dash-born .masonry > *:nth-child(3) { animation-delay: 90ms; }
+  .dash-born .widget-grid > *:nth-child(4),
+  .dash-born .masonry > *:nth-child(4) { animation-delay: 135ms; }
+  .dash-born .widget-grid > *:nth-child(5),
+  .dash-born .masonry > *:nth-child(5) { animation-delay: 180ms; }
+  .dash-born .widget-grid > *:nth-child(6),
+  .dash-born .masonry > *:nth-child(6) { animation-delay: 225ms; }
+  .dash-born .widget-grid > *:nth-child(n+7),
+  .dash-born .masonry > *:nth-child(n+7) { animation-delay: 270ms; }
+
+  .dash-born .sidebar {
+    animation: dash-side 640ms var(--ease-out) both;
   }
 
   @keyframes dash-born {
     from {
       opacity: 0;
-      transform: translateY(12px) scale(0.99);
+      transform: translateY(16px) scale(0.985);
     }
   }
+
+  @keyframes dash-side {
+    from {
+      opacity: 0;
+      transform: translateX(-16px);
+    }
+  }
+}
+
+/* ---------- Проваливание в глубину ----------
+   Каркас уходит внутрь экрана: камера «входит» в дашборд, а не просто
+   гасит картинку. Перспектива на контейнере, слои уезжают по Z. */
+.preloader {
+  perspective: 1200px;
+  perspective-origin: 50% 46%;
+}
+
+.preloader .pl-frame,
+.preloader .pl-core,
+.preloader .pl-aurora {
+  transform-style: preserve-3d;
+  transition:
+    transform 780ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 780ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 780ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.preloader.out .pl-frame {
+  transform: translate3d(0, 0, 340px) scale(1.14);
+  opacity: 0;
+  filter: blur(7px);
+}
+
+.preloader.out .pl-core {
+  transform: translate(-50%, -50%) translate3d(0, 0, 620px) scale(1.5);
+  opacity: 0;
+  filter: blur(10px);
+}
+
+.preloader.out .pl-aurora {
+  transform: translate3d(0, 0, 220px);
+  opacity: 0;
+}
+
+/* Затухание самой подложки идёт следом за проваливанием */
+.preloader.out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 300ms var(--ease-in-out) 480ms, visibility 0s 780ms;
+}
+
+/* ---------- Вход дашборда ----------
+   Ждём ухода прелоадера: пока он на экране, контент скрыт.
+   Иначе анимации проигрывались под каркасом и зритель видел готовый экран. */
+.dash-wait .widget-grid > *,
+.dash-wait .dash-sidebar,
+.dash-wait .sidebar {
+  opacity: 0;
 }
 
 /* ---------- Уменьшение движения ---------- */

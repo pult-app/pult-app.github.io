@@ -3,70 +3,68 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 /**
  * Прелоадер «сборка дашборда».
  *
- * Не отдельная сцена, а каркас самого интерфейса: тот же остров навигации
- * и та же сетка карточек, только собранные из света. Пока данные грузятся,
- * каркас дышит и по нему бегут блики, а настоящий дашборд проявляется под ним.
- * Когда данные готовы, каркас растворяется - и на его месте уже живой экран.
+ * Не отдельная сцена, а каркас самого интерфейса. Блоков немного и они крупные:
+ * силуэт читается сразу, без дробления на мелкую плитку. Появление быстрое,
+ * а в конце каркас проваливается в глубину - камера уходит внутрь экрана
+ * и на его месте остаётся живой дашборд.
  */
-const MIN_MS = 1400
-const FADE_MS = 700
+const MIN_MS = 1250
+const FADE_MS = 780
 
-/** Силуэт сетки: ширина колонок и высота в px, как у настоящего bento.
- *  Блоков с запасом: каркас обязан заполнить экран до низа, иначе
- *  прелоадер выглядит обрубленным. */
-const BLOCKS: { w: 2 | 3 | 6; h: number }[] = [
-  { w: 6, h: 96 },
+/** Крупные блоки: четыре зоны вместо пятнадцати плиток.
+ *  Смещения по вертикали и разные пропорции ломают шаблонную сетку. */
+const BLOCKS: { w: 2 | 3 | 4 | 6; h: number; top?: number; tilt?: number }[] = [
+  { w: 6, h: 150 },              // баннер
+  { w: 4, h: 300, top: -18 },    // большой график, чуть выше линии
+  { w: 2, h: 268, top: 14, tilt: 1.2 }, // узкий блок справа, со своим ритмом
+  { w: 3, h: 240, tilt: -0.8 },  // аналитика
+  { w: 3, h: 196, top: 22 },     // статусы ниже - лестница ломает ряд
+  { w: 2, h: 210 },
+  { w: 2, h: 210, top: 10 },
+  { w: 2, h: 210 },
+  { w: 4, h: 260, top: -12, tilt: 0.7 },
+  { w: 2, h: 236, top: 18 },
   { w: 6, h: 200 },
-  { w: 2, h: 130 },
-  { w: 2, h: 130 },
-  { w: 2, h: 130 },
-  { w: 3, h: 148 },
-  { w: 3, h: 148 },
-  { w: 3, h: 126 },
-  { w: 3, h: 126 },
-  { w: 2, h: 150 },
-  { w: 2, h: 150 },
-  { w: 2, h: 150 },
-  { w: 3, h: 132 },
-  { w: 3, h: 132 },
-  { w: 6, h: 140 },
 ]
 
-export function Preloader({ done, inline }: { done: boolean; inline?: boolean }) {
+export function Preloader({ done, onGone }: { done: boolean; inline?: boolean; onGone?: () => void }) {
   const firstPaint = useRef<number | null>(null)
   const [gone, setGone] = useState(false)
-  const [fading, setFading] = useState(false)
+  const [sinking, setSinking] = useState(false)
 
   useEffect(() => {
     if (firstPaint.current === null) firstPaint.current = performance.now()
   }, [])
 
   useEffect(() => {
-    // В inline-режиме каркас уже часть экрана: он не гаснет сам, а уступает
-    // место живому контенту, когда тот смонтируется. Держим только затухание.
-    if (inline || !done || gone) return
+    if (!done || gone) return
     const shownFor = performance.now() - (firstPaint.current ?? performance.now())
     const wait = Math.max(0, MIN_MS - shownFor)
-    const t1 = window.setTimeout(() => setFading(true), wait)
+    const t1 = window.setTimeout(() => {
+      setSinking(true)
+      // Сигнал идёт ВМЕСТЕ с началом проваливания: дашборд проявляется,
+      // пока каркас уходит в глубину. Если ждать снятия, анимация входа
+      // успевает проиграть под ним и зритель видит готовый экран.
+      onGone?.()
+    }, wait)
     const t2 = window.setTimeout(() => setGone(true), wait + FADE_MS)
     return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [done, gone, inline])
+  }, [done, gone, onGone])
 
   if (gone) return null
 
   return (
     <div
-      className={'preloader' + (inline ? ' inline' : '') + (fading ? ' out' : '')}
+      className={'preloader' + (sinking ? ' out' : '')}
       role="status"
       aria-live="polite"
       aria-label="Загрузка пульта"
     >
-      {/* Аврора: живёт прямо в полотне будущего дашборда */}
       <div className="pl-aurora" aria-hidden>
         <i /><i /><i />
       </div>
 
-      {/* Каркас: та же геометрия, что у настоящего экрана */}
+      {/* Каркас: перспектива задаёт проваливание в глубину */}
       <div className="pl-frame" aria-hidden>
         <div className="pl-island">
           <i /><i /><i /><i /><i /><i /><i />
@@ -77,7 +75,12 @@ export function Preloader({ done, inline }: { done: boolean; inline?: boolean })
             <div
               className={'pl-card w-' + b.w}
               key={i}
-              style={{ '--i': i, height: b.h } as CSSProperties}
+              style={{
+                '--i': i,
+                height: b.h,
+                marginTop: b.top ?? 0,
+                '--tilt': (b.tilt ?? 0) + 'deg',
+              } as CSSProperties}
             >
               <span className="pl-card-glow" />
             </div>
@@ -85,7 +88,6 @@ export function Preloader({ done, inline }: { done: boolean; inline?: boolean })
         </div>
       </div>
 
-      {/* Знак по центру: единственный непрозрачный элемент */}
       <div className="pl-core">
         <div className="pl-halo" aria-hidden />
         <div className="pl-mark">
