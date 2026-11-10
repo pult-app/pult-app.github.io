@@ -1,28 +1,22 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /**
- * Прелоадер: полёт сквозь слои в глубину.
+ * Прелоадер: сборка интерфейса из света.
  *
- * Вместо вращающихся колец - ощущение погружения: рамки-плашки летят из
- * точки схода на зрителя, растут и растворяются. В центре держится знак,
- * внизу бежит полоса.
+ * Идея: экран не «ждёт», а собирается. По полю плывут мягкие световые пятна,
+ * из центра расходятся тонкие кольца, а в середине проявляется знак с живым
+ * ореолом. Внизу бежит световая полоса с градиентом фиолетовый-янтарь.
  *
- * Держится МИНИМУМ MIN_MS от своего появления, даже если данные пришли
- * мгновенно: иначе экран мелькает на один кадр. Отсчёт идёт от первого
- * рендера в браузере, а не от начала загрузки модуля.
+ * Держится минимум MIN_MS от первого рендера: иначе мелькает на один кадр.
  */
-const LAYERS = 7
-/** Минимальное время показа, чтобы анимация успела прочитаться. */
-const MIN_MS = 1250
-/** Сколько длится плавное исчезновение, как в CSS. */
-const FADE_MS = 640
+const MIN_MS = 1400
+const FADE_MS = 620
 
 export function Preloader({ done }: { done: boolean }) {
   const firstPaint = useRef<number | null>(null)
   const [gone, setGone] = useState(false)
   const [fading, setFading] = useState(false)
 
-  // Засекаем момент, когда прелоадер реально попал в DOM
   useEffect(() => {
     if (firstPaint.current === null) firstPaint.current = performance.now()
   }, [])
@@ -45,23 +39,32 @@ export function Preloader({ done }: { done: boolean }) {
       aria-live="polite"
       aria-label="Загрузка пульта"
     >
-      <div className="pl-tunnel" aria-hidden>
-        {Array.from({ length: LAYERS }, (_, i) => (
-          <span
-            className="pl-layer"
-            key={i}
-            style={{ '--i': i, '--n': LAYERS } as CSSProperties}
-          >
-            <i /><i /><i /><i />
-          </span>
-        ))}
+      {/* Световое поле: большие мягкие пятна, медленно дышат */}
+      <div className="pl-aurora" aria-hidden>
+        <i /><i /><i />
+      </div>
+
+      {/* Кольца расходятся от центра, как круги по воде */}
+      <div className="pl-ripples" aria-hidden>
+        <i /><i /><i /><i />
       </div>
 
       <div className="pl-core">
-        <div className="pl-mark">П</div>
+        {/* Ореол под знаком: живой, дышит */}
+        <div className="pl-halo" aria-hidden />
+
+        <div className="pl-mark">
+          <span>П</span>
+          <span className="pl-sheen" aria-hidden />
+        </div>
+
         <div className="pl-word">Пульт</div>
-        <div className="pl-bar"><i /></div>
-        <div className="pl-note">вхожу в день</div>
+
+        <div className="pl-bar" aria-hidden>
+          <i />
+        </div>
+
+        <div className="pl-note">собираю день</div>
       </div>
     </div>
   )

@@ -108,19 +108,16 @@
   overflow: hidden;
 }
 
-/* Списки внутри карточек прокручиваются, а не обрезаются молча.
-   Раньше overflow:hidden срезал письмо под кромкой без всякого признака,
-   что там есть ещё. Мягкое затухание внизу показывает продолжение. */
+/* Списки внутри карточек обрезаются с мягким затуханием, но НЕ прокручиваются.
+   overflow-y: auto на вложенных блоках перехватывал колесо: у наведённого
+   списка прокрутка застревала и страница не ехала. Затухание показывает,
+   что ниже есть ещё, а колесо всегда прокручивает страницу. */
 .masonry > .widget > .mail-list,
 .masonry > .widget > .widget-rows,
 .masonry > .widget > .sub-list,
 .masonry > .widget > .timeline {
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--ink) 20%, transparent) transparent;
-  scrollbar-gutter: stable;
-  mask-image: linear-gradient(180deg, #000 calc(100% - 20px), transparent);
+  overflow: hidden;
+  mask-image: linear-gradient(180deg, #000 calc(100% - 18px), transparent);
 }
 
 /* Порядок карточек: широкие аналитические и узкие статусные чередуются */

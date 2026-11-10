@@ -1,5 +1,5 @@
-/* Пульт — Прелоадер «погружение» (10.11.2026).
-   Слои летят из точки схода на зрителя: экран втягивает внутрь, а не ждёт. */
+/* Пульт — Прелоадер «сборка из света» (10.11.2026).
+   Не ждёт, а собирается: аврора, круги по воде, проявление знака. */
 
 .preloader {
   position: fixed;
@@ -8,28 +8,17 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 55% 45% at 50% 46%, rgba(109, 75, 196, 0.14), transparent 62%),
-    radial-gradient(ellipse 70% 55% at 50% 50%, rgba(194, 126, 48, 0.08), transparent 68%),
-    #08090C;
-  transition: opacity 640ms var(--ease-out), visibility 0s 640ms;
-  perspective: 900px;
-  perspective-origin: 50% 50%;
+  background: #07080B;
+  transition: opacity 620ms var(--ease-out), visibility 0s 620ms;
 }
 
 [data-theme="light"] .preloader {
-  background:
-    radial-gradient(ellipse 55% 45% at 50% 46%, rgba(109, 75, 196, 0.09), transparent 62%),
-    radial-gradient(ellipse 70% 55% at 50% 50%, rgba(196, 126, 48, 0.11), transparent 68%),
-    #F4F1EC;
+  background: #F6F2EC;
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .preloader {
-    background:
-      radial-gradient(ellipse 55% 45% at 50% 46%, rgba(109, 75, 196, 0.09), transparent 62%),
-      radial-gradient(ellipse 70% 55% at 50% 50%, rgba(196, 126, 48, 0.11), transparent 68%),
-      #F4F1EC;
+    background: #F6F2EC;
   }
 }
 
@@ -39,257 +28,354 @@
   pointer-events: none;
 }
 
-/* ---------- Туннель ---------- */
-.pl-tunnel {
+/* ---------- Аврора: три мягких световых пятна ---------- */
+.pl-aurora {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  filter: blur(70px);
+  opacity: 0.85;
+}
+
+.pl-aurora i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+}
+
+.pl-aurora i:nth-child(1) {
+  width: 46vw;
+  height: 46vw;
+  left: 8%;
+  top: 4%;
+  background: radial-gradient(circle, rgba(139, 108, 240, 0.55), transparent 68%);
+  animation: pl-drift-a 11s var(--ease-in-out) infinite;
+}
+
+.pl-aurora i:nth-child(2) {
+  width: 40vw;
+  height: 40vw;
+  right: 10%;
+  top: 16%;
+  background: radial-gradient(circle, rgba(255, 165, 61, 0.42), transparent 68%);
+  animation: pl-drift-b 13s var(--ease-in-out) infinite;
+}
+
+.pl-aurora i:nth-child(3) {
+  width: 34vw;
+  height: 34vw;
+  left: 34%;
+  bottom: 2%;
+  background: radial-gradient(circle, rgba(120, 90, 220, 0.38), transparent 70%);
+  animation: pl-drift-c 15s var(--ease-in-out) infinite;
+}
+
+@keyframes pl-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(6%, 4%, 0) scale(1.12); }
+}
+
+@keyframes pl-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.06); }
+  50% { transform: translate3d(-7%, 5%, 0) scale(0.94); }
+}
+
+@keyframes pl-drift-c {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(0.96); }
+  50% { transform: translate3d(4%, -6%, 0) scale(1.1); }
+}
+
+/* На светлой теме аврора прозрачнее: на белом сильный цвет читается как грязь */
+[data-theme="light"] .pl-aurora {
+  opacity: 0.32;
+  filter: blur(80px);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .pl-aurora {
+    opacity: 0.32;
+    filter: blur(80px);
+  }
+}
+
+/* ---------- Круги по воде ---------- */
+.pl-ripples {
   position: absolute;
   inset: 0;
-  transform-style: preserve-3d;
+  display: grid;
+  place-items: center;
   pointer-events: none;
 }
 
-/* Слой: рамка-плашка в перспективе. Летит из глубины на зрителя.
-   Шире экрана, чтобы кадр реально «облетал» зрителя, а не висел в центре. */
-.pl-layer {
+.pl-ripples i {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 1080px;
-  height: 660px;
-  margin: -330px 0 0 -540px;
-  border-radius: 40px;
-  border: 1px solid rgba(139, 108, 240, 0.22);
-  background: transparent;
-  box-shadow: inset 0 0 90px rgba(139, 108, 240, 0.07);
-  transform-style: preserve-3d;
-  /* Цикл короче времени показа: к 700мс в кадре уже несколько слоёв,
-     иначе туннель читается только под конец и прелоадер смотрится пустым. */
-  animation: pl-fly 2.6s linear infinite;
-  animation-delay: calc(var(--i) / var(--n) * 2.6s);
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  border: 1px solid rgba(167, 139, 250, 0.35);
   opacity: 0;
+  animation: pl-ripple 3.6s var(--ease-out) infinite;
 }
 
-/* Четыре уголка внутри слоя: читается как каркас карточки дашборда */
-.pl-layer i {
-  position: absolute;
-  width: 30px;
-  height: 30px;
-  border: 2px solid rgba(255, 165, 61, 0.42);
-  border-radius: 8px;
-}
-.pl-layer i:nth-child(1) { top: 22px; left: 22px; border-right: 0; border-bottom: 0; }
-.pl-layer i:nth-child(2) { top: 22px; right: 22px; border-left: 0; border-bottom: 0; }
-.pl-layer i:nth-child(3) { bottom: 22px; left: 22px; border-right: 0; border-top: 0; }
-.pl-layer i:nth-child(4) { bottom: 22px; right: 22px; border-left: 0; border-top: 0; }
+.pl-ripples i:nth-child(2) { animation-delay: 0.9s; }
+.pl-ripples i:nth-child(3) { animation-delay: 1.8s; }
+.pl-ripples i:nth-child(4) { animation-delay: 2.7s; }
 
-/* Полёт: из точки схода к зрителю. Ближние слои размываются -
-   так работает глубина резкости, и «пролёт» читается как движение, а не как зум. */
-@keyframes pl-fly {
+@keyframes pl-ripple {
   0% {
-    transform: translate3d(0, 0, -1200px) scale(0.18);
+    transform: scale(0.35);
     opacity: 0;
-    filter: blur(1.5px);
+    border-color: rgba(167, 139, 250, 0.5);
   }
-  10% {
+  18% {
     opacity: 0.55;
   }
-  55% {
-    opacity: 0.38;
-    filter: blur(0.4px);
-  }
-  88% {
-    opacity: 0.16;
-    filter: blur(2px);
-  }
   100% {
-    transform: translate3d(0, 0, 420px) scale(1.7);
+    transform: scale(2.6);
     opacity: 0;
-    filter: blur(6px);
+    border-color: rgba(255, 165, 61, 0.15);
   }
 }
 
-/* На светлом слои тише */
-[data-theme="light"] .pl-layer {
-  border-color: rgba(109, 75, 196, 0.26);
-  background: rgba(109, 75, 196, 0.03);
-  box-shadow: inset 0 0 40px rgba(109, 75, 196, 0.08);
+[data-theme="light"] .pl-ripples i {
+  border-color: rgba(109, 75, 196, 0.28);
 }
 
-/* ---------- Центр: знак, слово, полоса ---------- */
+/* ---------- Центр ---------- */
 .pl-core {
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 0;
   z-index: 2;
   text-align: center;
-  /* Мягкая подложка: центр не сливается с пролетающими рамками */
-  padding: 46px 64px;
-  border-radius: 32px;
-  background: radial-gradient(ellipse 66% 58% at 50% 50%, rgba(8, 9, 12, 0.96) 34%, rgba(8, 9, 12, 0) 80%);
+  padding: 40px 56px;
 }
 
-[data-theme="light"] .pl-core {
-  background: radial-gradient(ellipse 66% 58% at 50% 50%, rgba(244, 241, 236, 0.97) 34%, rgba(244, 241, 236, 0) 80%);
+/* Ореол: живой, дышит под знаком */
+.pl-halo {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 260px;
+  height: 260px;
+  margin-left: -130px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle,
+    rgba(255, 165, 61, 0.28) 0%,
+    rgba(255, 165, 61, 0.10) 38%,
+    transparent 68%);
+  filter: blur(18px);
+  animation: pl-halo 3.2s var(--ease-in-out) infinite;
 }
 
+@keyframes pl-halo {
+  0%, 100% { transform: scale(1); opacity: 0.75; }
+  50% { transform: scale(1.16); opacity: 1; }
+}
+
+/* Знак: стеклянная плитка с янтарным свечением и пробегающим бликом */
 .pl-mark {
-  width: 78px;
-  height: 78px;
+  position: relative;
+  width: 84px;
+  height: 84px;
   display: grid;
   place-items: center;
-  margin-bottom: 22px;
-  border-radius: 23px;
+  margin-bottom: 26px;
+  border-radius: 26px;
+  overflow: hidden;
   font-family: var(--f-display, 'Unbounded', sans-serif);
-  font-size: 34px;
+  font-size: 36px;
   font-weight: 600;
   color: #1A1208;
-  background: linear-gradient(160deg, #FFC978, #FFA53D);
+  background:
+    linear-gradient(155deg, #FFD79A 0%, #FFA53D 52%, #F08A1E 100%);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.2) inset,
-    0 22px 54px -16px rgba(255, 165, 61, 0.85);
-  animation:
-    pl-mark-in 900ms var(--ease-spring) both,
-    pl-mark-pulse 2.8s var(--ease-in-out) 900ms infinite;
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.14),
+    0 0 0 1px rgba(255, 200, 130, 0.35),
+    0 24px 56px -18px rgba(255, 165, 61, 0.85);
+  animation: pl-mark-in 820ms var(--ease-spring) both;
+}
+
+/* Блик пробегает по плитке: читается как живое стекло */
+.pl-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.55) 48%,
+    transparent 62%);
+  transform: translateX(-120%);
+  animation: pl-sheen 3.4s var(--ease-in-out) 900ms infinite;
+  pointer-events: none;
+}
+
+@keyframes pl-sheen {
+  0%, 55% { transform: translateX(-120%); }
+  85%, 100% { transform: translateX(120%); }
 }
 
 @keyframes pl-mark-in {
   from {
-    transform: scale(0.4) rotate(-12deg);
+    transform: scale(0.55) translateY(10px);
     opacity: 0;
   }
 }
 
-@keyframes pl-mark-pulse {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(0, -3px, 0) scale(1.04); }
-}
-
 .pl-word {
   font-family: var(--f-display, 'Unbounded', sans-serif);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.20em;
   text-transform: uppercase;
-  color: #F6F2EC;
-  margin-bottom: 22px;
+  color: #F7F3ED;
+  margin-bottom: 28px;
+  text-shadow: 0 1px 18px rgba(255, 165, 61, 0.24);
+  animation: pl-fade-up 720ms var(--ease-out) 220ms both;
 }
 
 [data-theme="light"] .pl-word {
   color: #1A1613;
+  text-shadow: none;
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .pl-word {
     color: #1A1613;
+    text-shadow: none;
   }
 }
 
+@keyframes pl-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Полоса: световой след с градиентом фиолетовый-янтарь */
 .pl-bar {
-  width: 168px;
+  width: 190px;
   height: 3px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
   overflow: hidden;
+  animation: pl-fade-up 720ms var(--ease-out) 380ms both;
 }
 
 [data-theme="light"] .pl-bar {
-  background: rgba(26, 22, 19, 0.10);
+  background: rgba(26, 22, 19, 0.08);
 }
 
 .pl-bar i {
   display: block;
-  width: 40%;
+  width: 45%;
   height: 100%;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #6D4BC4, #FFA53D);
-  animation: pl-bar-run 1.6s var(--ease-in-out) infinite;
+  border-radius: 3px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(167, 139, 250, 0.9) 35%,
+    rgba(255, 165, 61, 1) 65%,
+    transparent);
+  box-shadow: 0 0 14px rgba(255, 165, 61, 0.6);
+  animation: pl-bar-run 1.7s var(--ease-in-out) infinite;
 }
 
 @keyframes pl-bar-run {
-  0% { transform: translateX(-110%); }
-  100% { transform: translateX(350%); }
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(340%); }
 }
 
 .pl-note {
-  margin-top: 12px;
+  margin-top: 16px;
   font-family: var(--f-mono, monospace);
   font-size: 10.5px;
-  letter-spacing: 0.20em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: rgba(246, 242, 236, 0.45);
+  color: rgba(247, 243, 237, 0.42);
+  animation: pl-fade-up 720ms var(--ease-out) 520ms both;
 }
 
 [data-theme="light"] .pl-note {
-  color: rgba(26, 22, 19, 0.45);
+  color: rgba(26, 22, 19, 0.42);
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .pl-note {
-    color: rgba(26, 22, 19, 0.45);
+    color: rgba(26, 22, 19, 0.42);
   }
 }
 
-/* ---------- Уменьшение движения: без полёта, только знак ---------- */
+/* ---------- Большие экраны ----------
+   На 2K композиция крупнее, иначе теряется в полотне. */
+@media (min-width: 1600px) {
+  .pl-mark {
+    width: 132px;
+    height: 132px;
+    border-radius: 40px;
+    font-size: 56px;
+    margin-bottom: 38px;
+  }
+
+  .pl-word {
+    font-size: 32px;
+    letter-spacing: 0.22em;
+    margin-bottom: 40px;
+  }
+
+  .pl-bar {
+    width: 300px;
+    height: 5px;
+  }
+
+  .pl-note {
+    font-size: 12.5px;
+    margin-top: 20px;
+    letter-spacing: 0.28em;
+  }
+
+  .pl-halo {
+    width: 420px;
+    height: 420px;
+    margin-left: -210px;
+    top: -30px;
+  }
+
+  .pl-ripples i {
+    width: 360px;
+    height: 360px;
+  }
+
+  .pl-core {
+    padding: 60px 90px;
+  }
+}
+
+/* ---------- Уменьшение движения ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .pl-tunnel {
+  .pl-aurora i,
+  .pl-ripples,
+  .pl-halo,
+  .pl-sheen {
+    animation: none;
+  }
+
+  .pl-ripples {
     display: none;
   }
 
-  .pl-mark {
+  .pl-mark,
+  .pl-word,
+  .pl-bar,
+  .pl-note {
     animation: none;
   }
 
   .pl-bar i {
     animation: none;
     width: 100%;
-    opacity: 0.6;
-  }
-}
-
-/* ---------- Большие экраны ----------
-   На 2K знак 78px терялся в пустоте: увеличиваем всю композицию,
-   чтобы прелоадер держал масштаб монитора. */
-@media (min-width: 1600px) {
-  .pl-mark {
-    width: 96px;
-    height: 96px;
-    border-radius: 28px;
-    font-size: 42px;
-    margin-bottom: 26px;
-  }
-
-  .pl-word {
-    font-size: 24px;
-    letter-spacing: 0.18em;
-    margin-bottom: 26px;
-  }
-
-  .pl-bar {
-    width: 210px;
-    height: 4px;
-  }
-
-  .pl-note {
-    font-size: 11.5px;
-    margin-top: 14px;
-  }
-
-  .pl-core {
-    padding: 56px 78px;
-    border-radius: 38px;
-  }
-
-  /* Слои ближе к зрителю: на широком экране рамка 1080px мала,
-     туннель не читался */
-  .pl-layer {
-    width: 1500px;
-    height: 900px;
-    margin: -450px 0 0 -750px;
-    border-radius: 52px;
-  }
-
-  .pl-layer i {
-    width: 38px;
-    height: 38px;
+    opacity: 0.65;
   }
 }
