@@ -1,24 +1,23 @@
-/* Пульт — Прелоадер «сборка из света» (10.11.2026).
-   Не ждёт, а собирается: аврора, круги по воде, проявление знака. */
+/* Пульт — Прелоадер «сборка дашборда» (11.11.2026).
+   Не отдельная сцена: каркас повторяет остров и сетку настоящего экрана,
+   поэтому переход в живой дашборд незаметен. */
 
 .preloader {
   position: fixed;
   inset: 0;
   z-index: 200;
-  display: grid;
-  place-items: center;
   overflow: hidden;
   background: #07080B;
-  transition: opacity 620ms var(--ease-out), visibility 0s 620ms;
+  transition: opacity 700ms var(--ease-out), visibility 0s 700ms;
 }
 
 [data-theme="light"] .preloader {
-  background: #F6F2EC;
+  background: #F4F0EA;
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .preloader {
-    background: #F6F2EC;
+    background: #F4F0EA;
   }
 }
 
@@ -28,13 +27,29 @@
   pointer-events: none;
 }
 
-/* ---------- Аврора: три мягких световых пятна ---------- */
+/* Inline-режим: каркас живёт ВНУТРИ дашборда, а не поверх него.
+   Тот же экран, только наполнение ещё световое - поэтому переход
+   в живой контент не читается как смена сцены. */
+.preloader.inline {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: transparent;
+  opacity: 1;
+  visibility: visible;
+}
+
+.preloader.inline .pl-core {
+  opacity: 0.92;
+}
+
+/* ---------- Аврора: свет в полотне ---------- */
 .pl-aurora {
   position: absolute;
-  inset: -20%;
+  inset: -15%;
   pointer-events: none;
-  filter: blur(70px);
-  opacity: 0.85;
+  filter: blur(80px);
+  opacity: 0.8;
 }
 
 .pl-aurora i {
@@ -45,176 +60,292 @@
 }
 
 .pl-aurora i:nth-child(1) {
-  width: 46vw;
-  height: 46vw;
-  left: 8%;
-  top: 4%;
-  background: radial-gradient(circle, rgba(139, 108, 240, 0.55), transparent 68%);
-  animation: pl-drift-a 11s var(--ease-in-out) infinite;
+  width: 44vw;
+  height: 44vw;
+  left: 6%;
+  top: -4%;
+  background: radial-gradient(circle, rgba(139, 108, 240, 0.5), transparent 68%);
+  animation: pl-drift-a 12s var(--ease-in-out) infinite;
 }
 
 .pl-aurora i:nth-child(2) {
-  width: 40vw;
-  height: 40vw;
-  right: 10%;
-  top: 16%;
-  background: radial-gradient(circle, rgba(255, 165, 61, 0.42), transparent 68%);
-  animation: pl-drift-b 13s var(--ease-in-out) infinite;
+  width: 38vw;
+  height: 38vw;
+  right: 4%;
+  top: 8%;
+  background: radial-gradient(circle, rgba(255, 165, 61, 0.38), transparent 68%);
+  animation: pl-drift-b 14s var(--ease-in-out) infinite;
 }
 
 .pl-aurora i:nth-child(3) {
-  width: 34vw;
-  height: 34vw;
-  left: 34%;
-  bottom: 2%;
-  background: radial-gradient(circle, rgba(120, 90, 220, 0.38), transparent 70%);
-  animation: pl-drift-c 15s var(--ease-in-out) infinite;
+  width: 32vw;
+  height: 32vw;
+  left: 36%;
+  bottom: -2%;
+  background: radial-gradient(circle, rgba(120, 90, 220, 0.34), transparent 70%);
+  animation: pl-drift-c 16s var(--ease-in-out) infinite;
 }
 
 @keyframes pl-drift-a {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(6%, 4%, 0) scale(1.12); }
+  50% { transform: translate3d(5%, 4%, 0) scale(1.1); }
 }
 
 @keyframes pl-drift-b {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1.06); }
-  50% { transform: translate3d(-7%, 5%, 0) scale(0.94); }
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  50% { transform: translate3d(-6%, 5%, 0) scale(0.95); }
 }
 
 @keyframes pl-drift-c {
   0%, 100% { transform: translate3d(0, 0, 0) scale(0.96); }
-  50% { transform: translate3d(4%, -6%, 0) scale(1.1); }
+  50% { transform: translate3d(4%, -5%, 0) scale(1.08); }
 }
 
-/* На светлой теме аврора прозрачнее: на белом сильный цвет читается как грязь */
 [data-theme="light"] .pl-aurora {
-  opacity: 0.32;
-  filter: blur(80px);
+  opacity: 0.28;
+  filter: blur(90px);
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .pl-aurora {
-    opacity: 0.32;
-    filter: blur(80px);
+    opacity: 0.28;
+    filter: blur(90px);
   }
 }
 
-/* ---------- Круги по воде ---------- */
-.pl-ripples {
+/* ---------- Каркас: геометрия настоящего дашборда ----------
+   Повторяет .dash с его колонками 96px + 1fr и отступами. */
+.pl-frame {
   position: absolute;
   inset: 0;
   display: grid;
-  place-items: center;
+  grid-template-columns: 96px minmax(0, 1fr);
+  z-index: 1;
   pointer-events: none;
 }
 
-.pl-ripples i {
-  position: absolute;
-  width: 240px;
-  height: 240px;
-  border-radius: 50%;
-  border: 1px solid rgba(167, 139, 250, 0.35);
-  opacity: 0;
-  animation: pl-ripple 3.6s var(--ease-out) infinite;
-}
-
-.pl-ripples i:nth-child(2) { animation-delay: 0.9s; }
-.pl-ripples i:nth-child(3) { animation-delay: 1.8s; }
-.pl-ripples i:nth-child(4) { animation-delay: 2.7s; }
-
-@keyframes pl-ripple {
-  0% {
-    transform: scale(0.35);
-    opacity: 0;
-    border-color: rgba(167, 139, 250, 0.5);
-  }
-  18% {
-    opacity: 0.55;
-  }
-  100% {
-    transform: scale(2.6);
-    opacity: 0;
-    border-color: rgba(255, 165, 61, 0.15);
+@media (min-width: 1600px) {
+  .pl-frame {
+    grid-template-columns: 108px minmax(0, 1fr);
   }
 }
 
-[data-theme="light"] .pl-ripples i {
-  border-color: rgba(109, 75, 196, 0.28);
+/* Остров навигации: те же отступы и радиус, что у живого сайдбара */
+.pl-island {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  align-self: start;
+  width: 78px;
+  margin: 20px 0 20px 18px;
+  padding: 14px 0 16px;
+  border-radius: 28px;
+  background: rgba(255, 245, 235, 0.045);
+  box-shadow: inset 0 0 0 1px rgba(255, 245, 235, 0.07);
 }
 
-/* ---------- Центр ---------- */
-.pl-core {
+.pl-island i {
+  display: block;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: rgba(255, 245, 235, 0.05);
+  animation: pl-shimmer 2.2s var(--ease-in-out) infinite;
+  animation-delay: calc(var(--d, 0) * 1ms);
+}
+
+.pl-island i:nth-child(1) { animation-delay: 0ms; background: rgba(255, 165, 61, 0.16); }
+.pl-island i:nth-child(2) { animation-delay: 90ms; }
+.pl-island i:nth-child(3) { animation-delay: 180ms; }
+.pl-island i:nth-child(4) { animation-delay: 270ms; }
+.pl-island i:nth-child(5) { animation-delay: 360ms; }
+.pl-island i:nth-child(6) { animation-delay: 450ms; }
+.pl-island i:nth-child(7) { animation-delay: 540ms; }
+
+/* Сетка карточек: те же 6 колонок и зазор 16px */
+.pl-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 16px;
+  align-content: start;
+  padding: 28px 28px 40px;
+  /* Каркас идёт до низа экрана: обрезанные на полпути карточки выдавали
+     подделку, живой экран заполняет всё полотно */
+  min-height: 100%;
+  overflow: hidden;
+}
+
+/* Последний ряд тянется: нижний край не обрывается в пустоту */
+.pl-card:last-child {
+  min-height: 220px;
+}
+
+@media (min-width: 1600px) {
+  .pl-grid {
+    padding: 32px 32px 48px;
+    gap: 18px;
+  }
+}
+
+.pl-card {
   position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  background:
+    linear-gradient(168deg,
+      rgba(255, 245, 235, 0.055) 0%,
+      rgba(255, 245, 235, 0.022) 48%,
+      rgba(255, 245, 235, 0.035) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 245, 235, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  /* Каждая карточка появляется со своей задержкой: экран собирается */
+  animation: pl-card-in 620ms var(--ease-out) both;
+  animation-delay: calc(var(--i) * 55ms + 80ms);
+}
+
+.pl-card.w-2 { grid-column: span 2; }
+.pl-card.w-3 { grid-column: span 3; }
+.pl-card.w-6 { grid-column: span 6; }
+
+@keyframes pl-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+}
+
+/* По карточке пробегает световая волна: каркас «живёт» */
+.pl-card-glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg,
+    transparent 32%,
+    rgba(167, 139, 250, 0.16) 46%,
+    rgba(255, 165, 61, 0.13) 54%,
+    transparent 68%);
+  transform: translateX(-130%);
+  animation: pl-card-sweep 2.8s var(--ease-in-out) infinite;
+  animation-delay: calc(var(--i) * 180ms + 600ms);
+}
+
+@keyframes pl-card-sweep {
+  0%, 40% { transform: translateX(-130%); }
+  85%, 100% { transform: translateX(130%); }
+}
+
+/* Мягкое дыхание острова и карточек */
+@keyframes pl-shimmer {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+[data-theme="light"] .pl-island {
+  background: rgba(26, 22, 19, 0.035);
+  box-shadow: inset 0 0 0 1px rgba(26, 22, 19, 0.06);
+}
+
+[data-theme="light"] .pl-island i {
+  background: rgba(26, 22, 19, 0.05);
+}
+
+[data-theme="light"] .pl-island i:nth-child(1) {
+  background: rgba(168, 80, 10, 0.14);
+}
+
+[data-theme="light"] .pl-card {
+  background:
+    linear-gradient(168deg,
+      rgba(255, 255, 255, 0.66) 0%,
+      rgba(255, 255, 255, 0.34) 48%,
+      rgba(255, 255, 255, 0.52) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(26, 22, 19, 0.055),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* ---------- Центр: знак ---------- */
+.pl-core {
+  position: absolute;
+  top: 50%;
+  left: calc(50% + 48px);
+  transform: translate(-50%, -50%);
   display: grid;
   justify-items: center;
-  z-index: 2;
+  z-index: 3;
   text-align: center;
-  padding: 40px 56px;
+  padding: 44px 64px;
+  /* Мягкая подложка: знак не спорит с каркасом под ним, но и не режет его */
+  background: radial-gradient(ellipse 62% 58% at 50% 48%,
+    rgba(7, 8, 11, 0.86) 26%,
+    rgba(7, 8, 11, 0) 76%);
 }
 
-/* Ореол: живой, дышит под знаком */
+[data-theme="light"] .pl-core {
+  background: radial-gradient(ellipse 62% 58% at 50% 48%,
+    rgba(244, 240, 234, 0.9) 26%,
+    rgba(244, 240, 234, 0) 76%);
+}
+
 .pl-halo {
   position: absolute;
-  top: -10px;
+  top: -20px;
   left: 50%;
-  width: 260px;
-  height: 260px;
-  margin-left: -130px;
+  width: 300px;
+  height: 300px;
+  margin-left: -150px;
   border-radius: 50%;
   pointer-events: none;
   background: radial-gradient(circle,
-    rgba(255, 165, 61, 0.28) 0%,
-    rgba(255, 165, 61, 0.10) 38%,
+    rgba(255, 165, 61, 0.26) 0%,
+    rgba(255, 165, 61, 0.09) 40%,
     transparent 68%);
-  filter: blur(18px);
-  animation: pl-halo 3.2s var(--ease-in-out) infinite;
+  filter: blur(20px);
+  animation: pl-halo 3.4s var(--ease-in-out) infinite;
 }
 
 @keyframes pl-halo {
-  0%, 100% { transform: scale(1); opacity: 0.75; }
-  50% { transform: scale(1.16); opacity: 1; }
+  0%, 100% { transform: scale(1); opacity: 0.72; }
+  50% { transform: scale(1.14); opacity: 1; }
 }
 
-/* Знак: стеклянная плитка с янтарным свечением и пробегающим бликом */
 .pl-mark {
   position: relative;
   width: 84px;
   height: 84px;
   display: grid;
   place-items: center;
-  margin-bottom: 26px;
+  margin-bottom: 24px;
   border-radius: 26px;
   overflow: hidden;
   font-family: var(--f-display, 'Unbounded', sans-serif);
   font-size: 36px;
   font-weight: 600;
   color: #1A1208;
-  background:
-    linear-gradient(155deg, #FFD79A 0%, #FFA53D 52%, #F08A1E 100%);
+  background: linear-gradient(155deg, #FFD79A 0%, #FFA53D 52%, #F08A1E 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.14),
     0 0 0 1px rgba(255, 200, 130, 0.35),
     0 24px 56px -18px rgba(255, 165, 61, 0.85);
   animation: pl-mark-in 820ms var(--ease-spring) both;
 }
 
-/* Блик пробегает по плитке: читается как живое стекло */
 .pl-sheen {
   position: absolute;
   inset: 0;
   background: linear-gradient(115deg,
-    transparent 30%,
+    transparent 32%,
     rgba(255, 255, 255, 0.55) 48%,
     transparent 62%);
   transform: translateX(-120%);
-  animation: pl-sheen 3.4s var(--ease-in-out) 900ms infinite;
+  animation: pl-sheen 3.6s var(--ease-in-out) 900ms infinite;
   pointer-events: none;
 }
 
 @keyframes pl-sheen {
-  0%, 55% { transform: translateX(-120%); }
-  85%, 100% { transform: translateX(120%); }
+  0%, 58% { transform: translateX(-120%); }
+  88%, 100% { transform: translateX(120%); }
 }
 
 @keyframes pl-mark-in {
@@ -228,12 +359,12 @@
   font-family: var(--f-display, 'Unbounded', sans-serif);
   font-size: 22px;
   font-weight: 600;
-  letter-spacing: 0.20em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: #F7F3ED;
-  margin-bottom: 28px;
+  margin-bottom: 26px;
   text-shadow: 0 1px 18px rgba(255, 165, 61, 0.24);
-  animation: pl-fade-up 720ms var(--ease-out) 220ms both;
+  animation: pl-fade-up 720ms var(--ease-out) 200ms both;
 }
 
 [data-theme="light"] .pl-word {
@@ -255,14 +386,13 @@
   }
 }
 
-/* Полоса: световой след с градиентом фиолетовый-янтарь */
 .pl-bar {
   width: 190px;
   height: 3px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
   overflow: hidden;
-  animation: pl-fade-up 720ms var(--ease-out) 380ms both;
+  animation: pl-fade-up 720ms var(--ease-out) 360ms both;
 }
 
 [data-theme="light"] .pl-bar {
@@ -289,13 +419,13 @@
 }
 
 .pl-note {
-  margin-top: 16px;
+  margin-top: 15px;
   font-family: var(--f-mono, monospace);
   font-size: 10.5px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: rgba(247, 243, 237, 0.42);
-  animation: pl-fade-up 720ms var(--ease-out) 520ms both;
+  animation: pl-fade-up 720ms var(--ease-out) 500ms both;
 }
 
 [data-theme="light"] .pl-note {
@@ -308,64 +438,66 @@
   }
 }
 
-/* ---------- Большие экраны ----------
-   На 2K композиция крупнее, иначе теряется в полотне. */
+/* ---------- Большие экраны ---------- */
 @media (min-width: 1600px) {
   .pl-mark {
-    width: 132px;
-    height: 132px;
-    border-radius: 40px;
-    font-size: 56px;
-    margin-bottom: 38px;
+    width: 108px;
+    height: 108px;
+    border-radius: 32px;
+    font-size: 46px;
+    margin-bottom: 28px;
   }
 
   .pl-word {
-    font-size: 32px;
-    letter-spacing: 0.22em;
-    margin-bottom: 40px;
+    font-size: 26px;
+    margin-bottom: 30px;
   }
 
   .pl-bar {
-    width: 300px;
-    height: 5px;
+    width: 240px;
+    height: 4px;
   }
 
   .pl-note {
-    font-size: 12.5px;
-    margin-top: 20px;
-    letter-spacing: 0.28em;
+    font-size: 11.5px;
+    margin-top: 18px;
   }
 
   .pl-halo {
-    width: 420px;
-    height: 420px;
-    margin-left: -210px;
-    top: -30px;
-  }
-
-  .pl-ripples i {
     width: 360px;
     height: 360px;
+    margin-left: -180px;
+  }
+}
+
+/* ---------- Рождение дашборда ----------
+   Живой экран проявляется поверх каркаса: мягкий подъём и фокус,
+   а не рывок. Скелетон под ним уже в той же геометрии. */
+@media (prefers-reduced-motion: no-preference) {
+  .dash-born .widget-grid > * {
+    animation: dash-born 620ms var(--ease-out) both;
+    animation-delay: calc(var(--d, 0) * 55ms + 40ms);
   }
 
-  .pl-core {
-    padding: 60px 90px;
+  @keyframes dash-born {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.99);
+    }
   }
 }
 
 /* ---------- Уменьшение движения ---------- */
 @media (prefers-reduced-motion: reduce) {
   .pl-aurora i,
-  .pl-ripples,
+  .pl-card-glow,
   .pl-halo,
-  .pl-sheen {
+  .pl-sheen,
+  .pl-island i {
     animation: none;
   }
 
-  .pl-ripples {
-    display: none;
-  }
-
+  .pl-card,
   .pl-mark,
   .pl-word,
   .pl-bar,

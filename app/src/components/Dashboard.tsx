@@ -6,6 +6,7 @@ import { startDashboardMotion } from '../lib/motion'
 import { morph } from '../lib/ux'
 import type { Go, Tab, Screen } from '../App'
 import { Sidebar } from './Sidebar'
+import { Preloader } from './Preloader'
 import { HeroWidget } from './widgets/HeroWidget'
 import { PulseWidget } from './widgets/PulseWidget'
 import { LessonsWidget } from './widgets/LessonsWidget'
@@ -187,24 +188,15 @@ export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, err
     return () => window.removeEventListener('keydown', onKey)
   }, [detail, closeDetail])
 
+  // Данных ещё нет: показываем каркас из того же прелоадера.
+  // Раньше здесь был серый скелетон - он спорил с прелоадером и переход
+  // выглядел как две разные сцены. Теперь это один непрерывный экран:
+  // каркас уже в геометрии дашборда, живой контент проявляется на его месте.
   if (!data) {
     return (
-      <div className="dash"><Backdrop />
-        <Sidebar tab="dashboard" badges={{}} statusCls="" statusText="" loaded="" onPick={() => {}} />
-        <div className="dash-main">
-          <div className="dash-sk">
-            <div className="sk-widget span2" style={{ minHeight: 170 }} />
-            <div className="sk-widget span1" style={{ minHeight: 220 }} />
-            <div className="sk-widget span1" style={{ minHeight: 220 }} />
-            <div className="sk-widget span2" />
-            <div className="sk-widget span1" />
-            <div className="sk-widget span1" />
-            <div className="sk-widget span1" />
-            <div className="sk-widget span1" />
-            <div className="sk-widget span1" />
-            <div className="sk-widget span2 tall" />
-          </div>
-        </div>
+      <div className="dash dash-loading">
+        <Backdrop />
+        <Preloader done={false} inline />
       </div>
     )
   }
@@ -247,7 +239,7 @@ export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, err
 
   return (
     <>
-    <div className="dash" ref={rootRef}><Backdrop />
+    <div className="dash dash-born" ref={rootRef}><Backdrop />
       <Sidebar tab="dashboard" badges={badges} statusCls={status.cls} statusText={status.text} loaded={loaded} onPick={setView} />
 
       <div className={'dash-main' + (detail ? ' pane-open' : '')} key="dash">
