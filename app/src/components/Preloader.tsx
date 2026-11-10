@@ -11,7 +11,9 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 const MIN_MS = 1400
 const FADE_MS = 700
 
-/** Силуэт сетки: ширина колонок и высота в px, как у настоящего bento. */
+/** Силуэт сетки: ширина колонок и высота в px, как у настоящего bento.
+ *  Блоков с запасом: каркас обязан заполнить экран до низа, иначе
+ *  прелоадер выглядит обрубленным. */
 const BLOCKS: { w: 2 | 3 | 6; h: number }[] = [
   { w: 6, h: 96 },
   { w: 6, h: 200 },
@@ -22,6 +24,12 @@ const BLOCKS: { w: 2 | 3 | 6; h: number }[] = [
   { w: 3, h: 148 },
   { w: 3, h: 126 },
   { w: 3, h: 126 },
+  { w: 2, h: 150 },
+  { w: 2, h: 150 },
+  { w: 2, h: 150 },
+  { w: 3, h: 132 },
+  { w: 3, h: 132 },
+  { w: 6, h: 140 },
 ]
 
 export function Preloader({ done, inline }: { done: boolean; inline?: boolean }) {
@@ -85,8 +93,6 @@ export function Preloader({ done, inline }: { done: boolean; inline?: boolean })
           <span className="pl-sheen" aria-hidden />
         </div>
         <div className="pl-word">Пульт</div>
-        <div className="pl-bar" aria-hidden><i /></div>
-        <div className="pl-note">собираю день</div>
       </div>
     </div>
   )

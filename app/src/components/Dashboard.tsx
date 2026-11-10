@@ -3,7 +3,6 @@ import type { PultData, Vacancy, VacancyStatus } from '../lib/types'
 import { days, fmtDate, today } from '../lib/dates'
 import { companyName, KINDS, messagesFor, type AgendaItem } from '../lib/domain'
 import { startDashboardMotion } from '../lib/motion'
-import { morph } from '../lib/ux'
 import type { Go, Tab, Screen } from '../App'
 import { Sidebar } from './Sidebar'
 import { Preloader } from './Preloader'
@@ -177,8 +176,10 @@ export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, err
     return () => { off(); clearTimeout(t) }
   }, [data, view])
 
-  // Закрыть панель: раскладка перестраивается плавно, снимок делает браузер
-  const closeDetail = useCallback(() => { morph(() => setDetail(null)) }, [])
+  // Закрыть модалку. View Transition здесь не нужна: окно живёт поверх
+  // и раскладку не двигает. Через morph() браузер сначала снимал снимок
+  // страницы, и затемнение прилетало с задержкой в полсекунды.
+  const closeDetail = useCallback(() => setDetail(null), [])
 
   // Escape
   useEffect(() => {
@@ -226,8 +227,10 @@ export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, err
     )
   }
 
-  // Основной дашборд
-  const openDetail = (d: Detail) => { morph(() => setDetail(d)) }
+  // Основной дашборд.
+  // Открытие напрямую: View Transition откладывала появление окна и затмение
+  // фона, из-за чего экран темнел рывком примерно через полсекунды.
+  const openDetail = (d: Detail) => { setDetail(d) }
 
   const openAgenda = (x: AgendaItem) => {
     if (x.goto === 'funnel' && x.ref) openDetail({ type: 'vacancy', id: x.ref })

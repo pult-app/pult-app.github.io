@@ -170,15 +170,16 @@
   gap: 16px;
   align-content: start;
   padding: 28px 28px 40px;
-  /* Каркас идёт до низа экрана: обрезанные на полпути карточки выдавали
-     подделку, живой экран заполняет всё полотно */
-  min-height: 100%;
+  /* Каркас обязан заполнить ВЕСЬ экран: раньше он доходил до середины,
+     и прелоадер выглядел обрубленным. min-height в процентах не работал,
+     потому что родитель absolute без явной высоты - берём vh. */
+  min-height: 100vh;
   overflow: hidden;
 }
 
 /* Последний ряд тянется: нижний край не обрывается в пустоту */
 .pl-card:last-child {
-  min-height: 220px;
+  min-height: 200px;
 }
 
 @media (min-width: 1600px) {
@@ -362,7 +363,9 @@
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: #F7F3ED;
-  margin-bottom: 26px;
+  /* Нижний отступ убран: под словом больше ничего нет,
+     лишний воздух отрывал его от знака */
+  margin-bottom: 0;
   text-shadow: 0 1px 18px rgba(255, 165, 61, 0.24);
   animation: pl-fade-up 720ms var(--ease-out) 200ms both;
 }
@@ -386,57 +389,9 @@
   }
 }
 
-.pl-bar {
-  width: 190px;
-  height: 3px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.09);
-  overflow: hidden;
-  animation: pl-fade-up 720ms var(--ease-out) 360ms both;
-}
-
-[data-theme="light"] .pl-bar {
-  background: rgba(26, 22, 19, 0.08);
-}
-
-.pl-bar i {
-  display: block;
-  width: 45%;
-  height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(90deg,
-    transparent,
-    rgba(167, 139, 250, 0.9) 35%,
-    rgba(255, 165, 61, 1) 65%,
-    transparent);
-  box-shadow: 0 0 14px rgba(255, 165, 61, 0.6);
-  animation: pl-bar-run 1.7s var(--ease-in-out) infinite;
-}
-
-@keyframes pl-bar-run {
-  0% { transform: translateX(-120%); }
-  100% { transform: translateX(340%); }
-}
-
-.pl-note {
-  margin-top: 15px;
-  font-family: var(--f-mono, monospace);
-  font-size: 10.5px;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: rgba(247, 243, 237, 0.42);
-  animation: pl-fade-up 720ms var(--ease-out) 500ms both;
-}
-
-[data-theme="light"] .pl-note {
-  color: rgba(26, 22, 19, 0.42);
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .pl-note {
-    color: rgba(26, 22, 19, 0.42);
-  }
-}
+/* Полоса и подпись убраны: под знаком теперь только слово «Пульт».
+   Прогресс-бар ничего не сообщал (длина загрузки неизвестна),
+   а подпись «собираю день» дублировала смысл и тянула внимание. */
 
 /* ---------- Большие экраны ---------- */
 @media (min-width: 1600px) {
@@ -449,18 +404,8 @@
   }
 
   .pl-word {
-    font-size: 26px;
-    margin-bottom: 30px;
-  }
-
-  .pl-bar {
-    width: 240px;
-    height: 4px;
-  }
-
-  .pl-note {
-    font-size: 11.5px;
-    margin-top: 18px;
+    font-size: 28px;
+    margin-bottom: 0;
   }
 
   .pl-halo {
@@ -499,15 +444,7 @@
 
   .pl-card,
   .pl-mark,
-  .pl-word,
-  .pl-bar,
-  .pl-note {
+  .pl-word {
     animation: none;
-  }
-
-  .pl-bar i {
-    animation: none;
-    width: 100%;
-    opacity: 0.65;
   }
 }
