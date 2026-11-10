@@ -917,63 +917,178 @@
   font-size: 34px;
 }
 
+/* ---------- Типографическая шкала ----------
+   Было 12 кеглей младше 16px, из них шесть дробных (10.5 / 11.5 / 12.5 / 13.5 /
+   14.5 / 15.5). Разница между 14.5 и 15 не читается глазом, но плодит разнобой.
+   Сводим к четырём ролям. */
+.dash-body {
+  --t-caps: 11px;
+  --t-meta: 12px;
+  --t-body: 14px;
+  --t-lead: 15px;
+}
+
+/* Роль «надзаголовок»: капслок, широкий трекинг */
+.widget-head h3,
+.wtag,
+.mc-kind,
+.tl-badge,
+.fs-conv {
+  font-size: var(--t-caps);
+  letter-spacing: 0.13em;
+}
+
+/* Роль «подпись»: вторичные данные, даты, пояснения */
+.widget-head .meta,
+.widget-row .wsub,
+.ldetail,
+.chart-figure span,
+.chart-delta-note,
+.chart-foot,
+.sr-day,
+.sp-name,
+.ol-name,
+.week-delta {
+  font-size: var(--t-meta);
+}
+
+/* Роль «текст»: основное содержимое строк */
+.widget-row .wtitle,
+.lsubj,
+.ltime b,
+.tl-subj,
+.mc-name,
+.week-foot {
+  font-size: var(--t-body);
+}
+
+/* ---------- Числа ----------
+   Пять кеглей и три разных отрицательных трекинга. С отрицательным трекингом
+   tabular-nums схлопывает пары цифр. Сводим к трём ступеням и мягкому трекингу. */
+.chart-figure b,
+.donut-center b,
+.week-figure b,
+.widget-ring .ring-info .big,
+.widget-pulse .ptile b {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.012em;
+  line-height: 1;
+}
+
+/* Главное число большого графика - самое крупное на экране */
+.widget-grid > .widget > .chart .chart-figure b {
+  font-size: 40px;
+}
+
+.masonry .chart-figure b {
+  font-size: 26px;
+}
+
+.donut-center b,
+.week-figure b,
+.widget-ring .ring-info .big {
+  font-size: 26px;
+}
+
+.widget-pulse .ptile b {
+  font-size: 24px;
+}
+
+/* Доли при крупных числах: мельче и без трекинга */
+.chart-figure b em,
+.chart-figure b i,
+.donut-center b i,
+.week-figure b i,
+.widget-pulse .ptile b em {
+  font-size: 0.52em;
+  letter-spacing: 0;
+  opacity: 0.5;
+}
+
 /* ---------- Уровни важности ----------
-   Уровень 1 (срочное сейчас): Hero и Горит — плотнее, контрастнее, с акцентной кромкой.
+   Уровень 1 (срочное сейчас): Hero и Горит - плотнее, контрастнее, акцентная кромка.
    Уровень 2 (аналитика): обычное стекло.
-   Уровень 3 (справочное): тише по фону и заголовку. */
-.widget-grid > .tier-1 {
-  --card: rgba(255, 255, 255, 0.9);
+   Уровень 3 (справочное): тише по фону и заголовку.
+
+   Раньше здесь задавался токен --card, который не читался ни одним правилом:
+   три уровня важности были невидимы, все 13 карточек выглядели одинаково.
+   Теперь плотность задаётся напрямую через background и box-shadow. */
+.masonry > .tier-1 {
+  /* background-image, а не background: у .glass свой градиент, и сокращённое
+     свойство проигрывало по специфичности - тиры оставались невидимыми */
+  background-image:
+    linear-gradient(168deg,
+      color-mix(in srgb, var(--amber) 7%, color-mix(in srgb, var(--card-solid) 90%, transparent)),
+      color-mix(in srgb, var(--card-solid) 74%, transparent));
   box-shadow:
-    0 0 0 1px var(--line-strong),
+    0 0 0 1px color-mix(in srgb, var(--amber) 26%, var(--line-strong)),
     0 1px 2px rgba(20, 16, 13, 0.06),
-    0 12px 30px -14px rgba(20, 16, 13, 0.18),
+    0 14px 34px -16px rgba(20, 16, 13, 0.20),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
-:root[data-theme="dark"] .widget-grid > .tier-1 {
-  --card: rgba(255, 255, 255, 0.10);
+:root[data-theme="dark"] .masonry > .tier-1 {
+  background-image:
+    linear-gradient(168deg,
+      color-mix(in srgb, var(--amber) 10%, color-mix(in srgb, var(--card-solid) 86%, transparent)),
+      color-mix(in srgb, var(--card-solid) 76%, transparent));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--amber) 32%, var(--line-strong)),
+    0 1px 2px rgba(0, 0, 0, 0.34),
+    0 16px 38px -18px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .widget-grid > .tier-1 {
-    --card: rgba(255, 255, 255, 0.10);
-  }
+/* Третий уровень: прозрачнее и тише - справочные блоки не спорят с аналитикой */
+.masonry > .tier-3 {
+  background-image:
+    linear-gradient(168deg,
+      color-mix(in srgb, var(--card-solid) 44%, transparent),
+      color-mix(in srgb, var(--card-solid) 30%, transparent));
+  box-shadow:
+    0 0 0 1px var(--line),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
-.widget-grid > .tier-1 .widget-head::before {
+:root[data-theme="dark"] .masonry > .tier-3 {
+  background-image:
+    linear-gradient(168deg,
+      color-mix(in srgb, var(--card-solid) 60%, transparent),
+      color-mix(in srgb, var(--card-solid) 46%, transparent));
+  box-shadow:
+    0 0 0 1px var(--line),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.masonry > .tier-1 .widget-head::before {
   width: 6px;
   height: 6px;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--amber) 22%, transparent);
 }
 
-.widget-grid > .tier-1 .widget-head h3 {
+.masonry > .tier-1 .widget-head h3 {
   color: var(--ink);
 }
 
-/* Третий уровень: тише фон, мельче заголовок, слабее кромка */
-.widget-grid > .tier-3 {
-  --card: rgba(255, 255, 255, 0.62);
-}
-
-:root[data-theme="dark"] .widget-grid > .tier-3 {
-  --card: rgba(255, 255, 255, 0.04);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .widget-grid > .tier-3 {
-    --card: rgba(255, 255, 255, 0.04);
-  }
-}
-
-.widget-grid > .tier-3 .widget-head h3 {
+.masonry > .tier-3 .widget-head h3 {
   color: var(--muted);
   font-weight: 600;
 }
 
-.widget-grid > .tier-3 .widget-head::before {
+.masonry > .tier-3 .widget-head::before {
   background: var(--muted);
   box-shadow: none;
   opacity: 0.55;
+}
+
+/* На третьем уровне и содержимое тише: цифры не кричат */
+.masonry > .tier-3 .chart-figure b,
+.masonry > .tier-3 .week-figure b,
+.masonry > .tier-3 .widget-pulse .ptile b {
+  opacity: 0.86;
 }
 
 /* ---------- Семантика состояний ---------- */

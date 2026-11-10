@@ -18,16 +18,21 @@
   }
 }
 
-/* Основная область: прокрутка (дашборд) */
+/* Основная область: прокрутка (дашборд).
+   Левое поле было 8px против правого 28px: сетка прилипала к острову сайдбара,
+   симметрия ломалась. Теперь воздух одинаковый. */
 .dash-main {
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 28px 28px 40px 8px;
+  padding: 28px 28px 40px;
   scroll-behavior: smooth;
-  /* Переход по margin убран: это layout-свойство, ширина всей сетки
-     пересчитывалась каждый кадр. Место резервируется сразу,
-     визуальное перетекание делает View Transitions. */
   transition: none;
+}
+
+@media (min-width: 1600px) {
+  .dash-main {
+    padding: 32px 32px 48px;
+  }
 }
 
 /* Дашборд больше не сжимается: детали открываются модальным окном поверх.
@@ -187,7 +192,10 @@
   margin: 20px 0 20px 18px;
   padding: 14px 0 16px;
   border-radius: 28px;
-  overflow: hidden;
+  /* overflow: visible - иначе подпись раздела (.sb-label на left: calc(100%+12px))
+     обрезалась и тултипы не появлялись никогда. Панель 78px, подпись стартует
+     на 75px, внутри оставалось 3px. */
+  overflow: visible;
   z-index: 20;
   position: relative;
   background: color-mix(in srgb, var(--card-solid) 52%, transparent);

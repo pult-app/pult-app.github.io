@@ -245,3 +245,51 @@
     opacity: 0.6;
   }
 }
+
+/* ---------- Большие экраны ----------
+   На 2K знак 78px терялся в пустоте: увеличиваем всю композицию,
+   чтобы прелоадер держал масштаб монитора. */
+@media (min-width: 1600px) {
+  .pl-mark {
+    width: 96px;
+    height: 96px;
+    border-radius: 28px;
+    font-size: 42px;
+    margin-bottom: 26px;
+  }
+
+  .pl-word {
+    font-size: 24px;
+    letter-spacing: 0.18em;
+    margin-bottom: 26px;
+  }
+
+  .pl-bar {
+    width: 210px;
+    height: 4px;
+  }
+
+  .pl-note {
+    font-size: 11.5px;
+    margin-top: 14px;
+  }
+
+  .pl-core {
+    padding: 56px 78px;
+    border-radius: 38px;
+  }
+
+  /* Слои ближе к зрителю: на широком экране рамка 1080px мала,
+     туннель не читался */
+  .pl-layer {
+    width: 1500px;
+    height: 900px;
+    margin: -450px 0 0 -750px;
+    border-radius: 52px;
+  }
+
+  .pl-layer i {
+    width: 38px;
+    height: 38px;
+  }
+}

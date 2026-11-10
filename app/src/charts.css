@@ -185,12 +185,18 @@
 .ce-ring i:nth-child(3) { inset: 20px; border-top-color: color-mix(in srgb, var(--amber) 24%, transparent); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .ce-ring i { animation: ce-spin 3.4s linear infinite; }
-  .ce-ring i:nth-child(2) { animation-duration: 4.6s; animation-direction: reverse; }
-  .ce-ring i:nth-child(3) { animation-duration: 5.8s; }
+  /* Медленное дыхание вместо вечного вращения: три кольца, крутящихся
+     бесконечно в пяти карточках, читались как «ещё грузится», хотя это
+     просто честное пустое состояние. */
+  .ce-ring i {
+    animation: ce-breathe 4s var(--ease-in-out) infinite;
+  }
+  .ce-ring i:nth-child(2) { animation-delay: 0.5s; }
+  .ce-ring i:nth-child(3) { animation-delay: 1s; }
 
-  @keyframes ce-spin {
-    to { transform: rotate(360deg); }
+  @keyframes ce-breathe {
+    0%, 100% { opacity: 0.45; transform: scale(0.94); }
+    50% { opacity: 1; transform: scale(1.02); }
   }
 }
 
