@@ -217,10 +217,17 @@
   border-radius: 16px;
   text-align: left;
   cursor: pointer;
-  background: color-mix(in srgb, var(--card-solid) 55%, transparent);
+  /* Углубление вместо осветления: белая плёнка поверх стекла сливалась с карточкой */
+  background: color-mix(in srgb, var(--ink) 4.5%, transparent);
   color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--line);
-  transition: transform var(--dur-ui) var(--ease-out), box-shadow var(--dur-ui) var(--ease-out);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+  transition: transform var(--dur-hover) var(--ease-out),
+    background-color var(--dur-hover) var(--ease-out);
+}
+
+[data-theme="dark"] .widget-pulse .ptile {
+  background: color-mix(in srgb, #000 26%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
 }
 
 .widget-pulse .ptile b {
@@ -613,16 +620,18 @@
   grid-auto-flow: column;
   grid-template-columns: repeat(var(--w), minmax(0, 1fr));
   gap: 4px;
-  /* Ограничение по высоте: иначе на 2K клетки растягивались до гигантских */
-  max-height: 132px;
+  /* Потолок по высоте: 7 строк по 30px + зазоры */
+  max-height: 234px;
 }
 
 .widget-heat .heat-cell {
   display: block;
   width: 100%;
-  /* Клетка не больше 22px: календарь читается, но не разъезжается на пол-экрана */
-  max-width: 22px;
-  max-height: 22px;
+  /* Клетка забирает доступную ширину: при жёстких 22px календарь в колонке w-2
+     занимал 297px из 746 и пустовал на 55%. Верхний предел 30px держит
+     пропорцию, но на 2K заполняет колонку. */
+  max-width: 30px;
+  max-height: 30px;
   aspect-ratio: 1;
   border: 0;
   padding: 0;
@@ -851,14 +860,33 @@
   color: var(--muted);
 }
 
+/* .chart-readout был без базового правила: <b> внутри наследовал 15px
+   обычного шрифта вместо дисплейного с tabular-nums, и главное число
+   ступени воронки звучало тише подписи рядом. */
+.chart-readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.chart-readout b {
+  font-family: var(--f-display);
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.012em;
+  line-height: 1;
+  color: var(--ink);
+}
+
 .chart-readout span {
-  font-size: 14px;
+  font-size: var(--t-meta);
   font-weight: 600;
   color: var(--ink-soft);
 }
 
 .chart-legend {
-  font-size: 12.5px;
+  font-size: var(--t-meta);
   color: var(--muted);
 }
 

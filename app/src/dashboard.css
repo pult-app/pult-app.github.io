@@ -108,6 +108,21 @@
   overflow: hidden;
 }
 
+/* Списки внутри карточек прокручиваются, а не обрезаются молча.
+   Раньше overflow:hidden срезал письмо под кромкой без всякого признака,
+   что там есть ещё. Мягкое затухание внизу показывает продолжение. */
+.masonry > .widget > .mail-list,
+.masonry > .widget > .widget-rows,
+.masonry > .widget > .sub-list,
+.masonry > .widget > .timeline {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink) 20%, transparent) transparent;
+  scrollbar-gutter: stable;
+  mask-image: linear-gradient(180deg, #000 calc(100% - 20px), transparent);
+}
+
 /* Порядок карточек: широкие аналитические и узкие статусные чередуются */
 .masonry > .w-2 { grid-column: span 2; }
 .masonry > .w-3 { grid-column: span 3; }
@@ -188,7 +203,11 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  height: calc(100vh - 40px);
+  /* Остров по содержимому, а не на весь экран: при вьюпорте 1400px панель
+     тянулась до 1360px при содержимом ~470px и на две трети была пустым
+     стеклом. Теперь держится верхом, статус прижат снизу. */
+  height: auto;
+  max-height: calc(100vh - 40px);
   margin: 20px 0 20px 18px;
   padding: 14px 0 16px;
   border-radius: 28px;
@@ -264,33 +283,15 @@
   transition: transform var(--dur-ui) var(--ease-spring);
 }
 
-/* Индикатор активной вкладки: полоска слева.
-   Высота фиксирована, анимация идёт по scaleY: height - layout-свойство
-   и заставляло пересчитывать сайдбар с его размытием каждый кадр. */
-.sidebar-btn::before {
-  content: "";
-  position: absolute;
-  left: -6px;
-  top: 50%;
-  width: 3px;
-  height: 22px;
-  border-radius: 2px;
-  background: var(--amber);
-  transform: translateY(-50%) scaleY(0);
-  transform-origin: center;
-  transition: transform var(--dur-ui) var(--ease-spring);
-}
+/* Полоска активной вкладки убрана: активное состояние рисует линза,
+   а три одновременных индикатора читались как смаз. */
 
-.sidebar-btn.active::before {
-  transform: translateY(-50%) scaleY(1);
-}
-
+/* Активное состояние рисует только .sidebar-lens (переезжает с пружиной).
+   Раньше здесь был ещё свой ::before и фон с кольцом: при клике 140мс было
+   видно два янтарных квадрата и два кольца разом - смаз.
+   Кнопка остаётся прозрачной, линза едет под ней. */
 .sidebar-btn.active {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--amber) 20%, transparent);
-  box-shadow:
-    inset 0 0 0 1.5px color-mix(in srgb, var(--amber) 52%, transparent),
-    0 8px 20px -10px color-mix(in srgb, var(--amber) 72%, transparent);
+  color: var(--amber);
 }
 
 /* Подпись раздела выезжает при наведении: панель остаётся узкой, но перестаёт быть немой */
@@ -383,8 +384,18 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 12px 8px 8px;
+  gap: 5px;
+  /* Прижимается к низу острова: кнопки сверху, статус отдельно */
+  margin-top: auto;
+  padding: 16px 8px 10px;
+}
+
+.sidebar-time {
+  font-size: 11px;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  text-align: center;
 }
 
 .sidebar-dot {
@@ -425,9 +436,13 @@
   align-items: center;
   justify-content: center;
   padding: 40px 24px;
-  background: rgba(10, 8, 6, 0.42);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  /* Блюр 3px на 2K не гасил ничего: сетка из 13 карточек за окном оставалась
+     читаемой и спорила за внимание. Плотное затемнение плюс мягкий градиент. */
+  background: radial-gradient(130% 100% at 50% 0%,
+    rgba(10, 8, 6, 0.30),
+    rgba(10, 8, 6, 0.60));
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
   animation: overlay-in 220ms var(--ease-out) both;
 }
 
@@ -442,15 +457,22 @@
   /* Явная ширина: внутри flex width:100% схлопывался до ширины содержимого
      и модалка сжималась в мелкий квадрат. */
   flex: 0 0 auto;
-  width: 560px;
+  width: min(680px, calc(100vw - 88px));
   max-width: 100%;
-  max-height: min(680px, calc(100vh - 80px));
+  max-height: min(760px, calc(100vh - 96px));
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 26px 28px 28px;
-  border-radius: 22px;
+  padding: 30px 32px 34px;
+  border-radius: 24px;
   z-index: 101;
   animation: pane-in 280ms var(--ease-out) both;
+}
+
+/* На 2K окно шире: 560px в полотне 2560 смотрелось случайной коробкой */
+@media (min-width: 2000px) {
+  .detail-pane {
+    width: 760px;
+  }
 }
 
 .detail-pane.out {
@@ -504,7 +526,7 @@
 /* Первая строка модалки не должна налезать на крестик */
 .detail-inner {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   padding-right: 34px;
 }
 
@@ -513,15 +535,15 @@
 }
 
 .detail-inner .widget-head h3 {
-  font-size: 13px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  letter-spacing: 0.13em;
 }
 
 /* Заголовок модалки крупнее обычных надзаголовков виджетов */
 .detail-inner > .widget-head:first-child h3 {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   text-transform: none;
   color: var(--ink);
 }

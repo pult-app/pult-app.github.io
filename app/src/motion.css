@@ -152,6 +152,21 @@
   opacity: 1;
 }
 
+/* Виньетка: собирает полотно 2K в кадр и уводит внимание от краёв.
+   Без неё пятна расползались к кромкам и угол экрана выглядел пустым. */
+.dash-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: radial-gradient(120% 92% at 50% 0%, transparent 34%, rgba(26, 22, 19, 0.14) 100%);
+}
+
+:root[data-theme="dark"] .dash-bg::before {
+  background: radial-gradient(120% 92% at 50% 0%, transparent 26%, rgba(0, 0, 0, 0.52) 100%);
+}
+
 /* Пятна фона: без filter: blur.
    Радиальный градиент уже мягкий, а blur на площади до 1200px пересчитывался
    при каждой смене масштаба и был входом для размытия карточек. */
@@ -203,22 +218,11 @@
   animation: orb-d 34s var(--ease-in-out) infinite;
 }
 
-.dash-bg i:nth-child(5) {
-  width: 40vw;
-  height: 40vw;
-  top: 30vw;
-  left: 30vw;
-  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--warm) 60%, transparent), transparent 74%);
-  animation: orb-e 37s var(--ease-in-out) infinite;
-}
-
+/* Пятое и шестое пятна убраны: они дублировали первые и добавляли
+   постоянный пересчёт размытия без видимого результата. */
+.dash-bg i:nth-child(5),
 .dash-bg i:nth-child(6) {
-  width: 34vw;
-  height: 34vw;
-  top: 12vw;
-  left: 26vw;
-  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--cool) 70%, transparent), transparent 74%);
-  animation: orb-f 40s var(--ease-in-out) infinite;
+  display: none;
 }
 
 /* В светлой теме пятна тише: на белом сильный цвет читается как грязь */

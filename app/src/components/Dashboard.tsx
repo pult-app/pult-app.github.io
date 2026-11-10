@@ -263,7 +263,7 @@ export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, err
 
           {/* Главный график тоже во всю ширину: ему нужен простор */}
           <div className="glass widget tier-2">
-            <div className="widget-head"><h3>Динамика откликов</h3><span className="meta">по дням</span></div>
+            <div className="widget-head"><h3>Динамика откликов</h3><span className="meta">по датам</span></div>
             <AreaChartWidget data={data} />
           </div>
 

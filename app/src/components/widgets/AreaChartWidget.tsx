@@ -8,7 +8,7 @@ import type { PultData } from '../../lib/types'
 // иначе отклики, поданные месяц назад, висят одной точкой в пустом графике.
 // Длинный размах собираем в корзины по 2-5 дней, чтобы точек было 10-14 и линия читалась.
 
-const H = 200
+/* Высота живёт в состоянии (см. useEffect ниже): тянется за экраном */
 /* Правый отступ шире: последняя точка с ореолом упиралась в кромку */
 const PAD = { l: 36, r: 26, t: 16, b: 26 }
 const TARGET_POINTS = 13
@@ -39,6 +39,7 @@ export function AreaChartWidget({ data }: { data: PultData }) {
   const t = today()
   const wrap = useRef<HTMLDivElement>(null)
   const [W, setW] = useState(620)
+  const [H, setH] = useState(200)
 
   useEffect(() => {
     const el = wrap.current
@@ -49,6 +50,19 @@ export function AreaChartWidget({ data }: { data: PultData }) {
     })
     ro.observe(el)
     return () => ro.disconnect()
+  }, [])
+
+  // Высота тянется за экраном: на 2K при жёстких 200px пропорция была 1:11
+  // и линия превращалась в плоскую ленту. viewBox берёт реальную высоту,
+  // иначе подписи осей разъезжаются.
+  useEffect(() => {
+    const fit = () => {
+      const h = Math.round(Math.min(340, Math.max(190, window.innerHeight * 0.21)))
+      setH(h)
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
   }, [])
 
   const byDay = useMemo(() => {

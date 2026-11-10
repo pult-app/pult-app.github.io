@@ -21,9 +21,8 @@
   /* Слой выделен заранее: без этого браузер пересобирает его каждый кадр */
   transform: translate3d(-9999px, -9999px, 0);
   background: radial-gradient(circle at 50% 50%,
-    color-mix(in srgb, var(--amber) 7%, transparent) 0%,
-    color-mix(in srgb, var(--amber) 3%, transparent) 40%,
-    transparent 70%);
+    color-mix(in srgb, var(--amber) 5%, transparent) 0%,
+    transparent 62%);
   transition: opacity 700ms var(--ease-out);
 }
 
