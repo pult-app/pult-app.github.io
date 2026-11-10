@@ -9,7 +9,9 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
  * и на его месте остаётся живой дашборд.
  */
 const MIN_MS = 1250
-const FADE_MS = 780
+/* Каркас уходит вглубь столько же, сколько всходит контент: движения
+   идут навстречу и не обрываются на снятии. */
+const FADE_MS = 720
 
 /** Крупные блоки: четыре зоны вместо пятнадцати плиток.
  *  Смещения по вертикали и разные пропорции ломают шаблонную сетку. */
@@ -40,15 +42,13 @@ export function Preloader({ done, onGone }: { done: boolean; inline?: boolean; o
     if (!done || gone) return
     const shownFor = performance.now() - (firstPaint.current ?? performance.now())
     const wait = Math.max(0, MIN_MS - shownFor)
-    const t1 = window.setTimeout(() => {
-      setSinking(true)
-      // Сигнал идёт ВМЕСТЕ с началом проваливания: дашборд проявляется,
-      // пока каркас уходит в глубину. Если ждать снятия, анимация входа
-      // успевает проиграть под ним и зритель видит готовый экран.
-      onGone?.()
-    }, wait)
+    // Сигнал идёт ЗАРАНЕЕ: контент начинает всплывать, пока каркас ещё
+    // только уходит вглубь. Так камера идёт одним движением, без паузы.
+    const lead = 140
+    const t0 = window.setTimeout(() => onGone?.(), Math.max(0, wait - lead))
+    const t1 = window.setTimeout(() => setSinking(true), wait)
     const t2 = window.setTimeout(() => setGone(true), wait + FADE_MS)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
+    return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2) }
   }, [done, gone, onGone])
 
   if (gone) return null
