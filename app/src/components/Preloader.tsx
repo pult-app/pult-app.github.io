@@ -8,10 +8,11 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
  * а в конце каркас проваливается в глубину - камера уходит внутрь экрана
  * и на его месте остаётся живой дашборд.
  */
-const MIN_MS = 1250
-/* Каркас уходит вглубь столько же, сколько всходит контент: движения
-   идут навстречу и не обрываются на снятии. */
-const FADE_MS = 720
+/* Общее время = MIN_MS + FADE_MS. Было 1250 + 720 = почти 2 секунды,
+   плюс задержки карточек - зритель ждал слишком долго.
+   Сейчас 620 + 520 = 1.14с, вход контента идёт внутри этого окна. */
+const MIN_MS = 620
+const FADE_MS = 520
 
 /** Крупные блоки: четыре зоны вместо пятнадцати плиток.
  *  Смещения по вертикали и разные пропорции ломают шаблонную сетку. */
@@ -44,7 +45,7 @@ export function Preloader({ done, onGone }: { done: boolean; inline?: boolean; o
     const wait = Math.max(0, MIN_MS - shownFor)
     // Сигнал идёт ЗАРАНЕЕ: контент начинает всплывать, пока каркас ещё
     // только уходит вглубь. Так камера идёт одним движением, без паузы.
-    const lead = 140
+    const lead = 90
     const t0 = window.setTimeout(() => onGone?.(), Math.max(0, wait - lead))
     const t1 = window.setTimeout(() => setSinking(true), wait)
     const t2 = window.setTimeout(() => setGone(true), wait + FADE_MS)

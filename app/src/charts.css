@@ -644,11 +644,20 @@
   }
 }
 
-/* ---------- Движение графиков ---------- */
+/* ---------- Движение графиков ----------
+   Всё привязано к .dash-born: пока прелоадер на экране, карточки скрыты
+   через .dash-wait, и анимации не должны тратиться впустую. Раньше они
+   стартовали при монтировании и заканчивались под прелоадером -
+   зритель видел уже готовый график. */
 @media (prefers-reduced-motion: no-preference) {
-  .area .area-line:not(.prev) {
+  .dash-wait .area .area-line:not(.prev) {
+    stroke-dashoffset: 1;
+    animation: none;
+  }
+
+  .dash-born .area .area-line:not(.prev) {
     stroke-dasharray: 1;
-    animation: line-draw 1100ms var(--ease-out) both;
+    animation: line-draw 900ms var(--ease-out) 120ms both;
   }
 
   /* Прошлое окно не прорисовывается: у него свой пунктир
@@ -663,8 +672,13 @@
     to { stroke-dashoffset: 0; }
   }
 
-  .area .area-fill {
-    animation: fill-in 900ms var(--ease-out) 220ms both;
+  .dash-wait .area .area-fill {
+    opacity: 0;
+    animation: none;
+  }
+
+  .dash-born .area .area-fill {
+    animation: fill-in 760ms var(--ease-out) 300ms both;
   }
 
   @keyframes fill-in {
@@ -672,17 +686,28 @@
     to { opacity: 1; transform: none; }
   }
 
-  .area .tick,
-  .area .axis {
-    animation: axis-in 500ms var(--ease-out) 500ms both;
+  .dash-wait .area .tick,
+  .dash-wait .area .axis {
+    opacity: 0;
+    animation: none;
+  }
+
+  .dash-born .area .tick,
+  .dash-born .area .axis {
+    animation: axis-in 420ms var(--ease-out) 480ms both;
   }
 
   @keyframes axis-in {
     from { opacity: 0; }
   }
 
-  .donut svg {
-    animation: donut-in 760ms var(--ease-spring) both;
+  .dash-wait .donut svg {
+    opacity: 0;
+    animation: none;
+  }
+
+  .dash-born .donut svg {
+    animation: donut-in 700ms var(--ease-spring) 200ms both;
   }
 
   @keyframes donut-in {
@@ -690,30 +715,54 @@
     to { opacity: 1; transform: rotate(-90deg) scale(1); }
   }
 
-  .ol-row {
-    animation: row-in 420ms var(--ease-out) both;
+  .dash-wait .ol-row {
+    opacity: 0;
+    animation: none;
+  }
+
+  .dash-born .ol-row {
+    animation: row-in 400ms var(--ease-out) both;
   }
 
   @keyframes row-in {
     from { opacity: 0; transform: translate3d(-6px, 0, 0); }
   }
 
-  .ol-track i {
-    animation: bar-grow 720ms var(--ease-out) 140ms both;
+  .dash-wait .ol-track i,
+  .dash-wait .ch-track i,
+  .dash-wait .fs-track i,
+  .dash-wait .sp-track i,
+  .dash-wait .sr-track i {
+    transform: scaleX(0);
+    animation: none;
   }
 
-  .ch-track i {
-    animation: bar-grow 760ms var(--ease-out) both;
-    animation-delay: calc(var(--i, 0) * 90ms + 100ms);
+  .dash-born .ol-track i {
+    animation: bar-grow 620ms var(--ease-out) 160ms both;
+  }
+
+  .dash-born .ch-track i {
+    animation: bar-grow 640ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 70ms + 140ms);
   }
 
   @keyframes bar-grow {
     from { transform: scaleX(0.02); }
   }
 
-  .fs-track i {
-    animation: bar-grow 760ms var(--ease-out) both;
-    animation-delay: calc(var(--i, 0) * 110ms + 100ms);
+  .dash-born .fs-track i {
+    animation: bar-grow 640ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 80ms + 160ms);
+  }
+
+  .dash-born .sp-track i {
+    animation: bar-grow 600ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 60ms + 160ms);
+  }
+
+  .dash-born .sr-track i {
+    animation: bar-grow 620ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 70ms + 150ms);
   }
 }
 

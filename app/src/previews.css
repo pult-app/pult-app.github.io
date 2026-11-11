@@ -278,9 +278,16 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .sr-track i {
-    animation: bar-grow 700ms var(--ease-out) both;
-    animation-delay: calc(var(--i, 0) * 80ms + 100ms);
+  /* Привязано к .dash-born: под прелоадером полосы скрыты, иначе
+     анимация проигрывалась раньше, чем её видно. */
+  .dash-wait .sr-track i {
+    transform: scaleX(0);
+    animation: none;
+  }
+
+  .dash-born .sr-track i {
+    animation: bar-grow 620ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 70ms + 150ms);
   }
 }
 
@@ -654,8 +661,13 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .week-bar i {
-    animation: week-fill 900ms var(--ease-out) 220ms both;
+  .dash-wait .week-bar i {
+    transform: scaleX(0.02);
+    animation: none;
+  }
+
+  .dash-born .week-bar i {
+    animation: week-fill 700ms var(--ease-out) 260ms both;
   }
 
   @keyframes week-fill {
@@ -664,9 +676,14 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .wd-col i {
-    animation: wd-grow 640ms var(--ease-out) both;
-    animation-delay: calc(var(--i, 0) * 70ms + 140ms);
+  .dash-wait .wd-col i {
+    transform: scaleY(0.04);
+    animation: none;
+  }
+
+  .dash-born .wd-col i {
+    animation: wd-grow 620ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 60ms + 200ms);
   }
 
   @keyframes wd-grow {
