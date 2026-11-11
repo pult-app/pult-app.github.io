@@ -247,7 +247,10 @@ export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, err
     <div className={'dash' + (reveal ? ' dash-born' : ' dash-wait')} ref={rootRef}><Backdrop />
       <Sidebar tab="dashboard" badges={badges} statusCls={status.cls} statusText={status.text} loaded={loaded} onPick={setView} />
 
-      <div className={'dash-main' + (detail ? ' pane-open' : '')} key="dash">
+      {/* key зависит от reveal: при смене прелоадерного состояния поддерево
+          пересоздаётся, и CSS-анимация входа гарантированно стартует заново.
+          Без этого браузер не перезапускает уже проигранную анимацию. */}
+      <div className={'dash-main' + (detail ? ' pane-open' : '')} key={'dash-' + (reveal ? 'born' : 'wait')}>
         {error && (
           <div className="banner" role="alert" style={{ marginBottom: 16 }}>
             Ошибка: {error} <button className="linkbtn" onClick={onDismissError}>скрыть</button>

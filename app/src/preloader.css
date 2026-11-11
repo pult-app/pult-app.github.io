@@ -22,14 +22,19 @@
   }
 }
 
-/* Затухание ПОСЛЕ проваливания: каркас уходит вглубь, и только потом
-   растворяется подложка. Если гасить одновременно, между слоями
-   появляется провал в чёрное и переход читается как два кадра. */
+/* ---------- Затухание ----------
+   Фон уходит СРАЗУ, как только начинается проваливание: иначе тёмная
+   подложка продолжает перекрывать дашборд и на мгновение появляется
+   чёрный экран. Каркас при этом ещё летит вглубь - он и держит картинку. */
 .preloader.out {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 260ms var(--ease-in-out) 460ms, visibility 0s 720ms;
+  background: transparent;
+  transition:
+    background-color 0ms linear 0ms,
+    opacity 520ms var(--ease-in-out),
+    visibility 0s 520ms;
 }
 
 /* Inline-режим: каркас живёт ВНУТРИ дашборда, а не поверх него.
@@ -442,32 +447,17 @@
   }
 
   /* Контент всходит вместе с уходом каркаса: одна камера, одно движение.
-     Длительность 520мс = столько же, сколько уходит каркас. */
+     Задержек нет вообще: экран пустовал, пока карточки ждали своей очереди,
+     а прелоадер уже ушёл. Все идут одной волной, лесенку даёт сама
+     длительность анимации. */
   .dash-born .widget-grid > *,
-  .dash-born .masonry > * {
-    animation: dash-born 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  .dash-born .masonry > *,
+  .dash-born .widget-hero {
+    animation: dash-born 520ms cubic-bezier(0.16, 1, 0.3, 1) both !important;
   }
 
-  /* Ступенчатая задержка: --d выставляется только детям .widget-grid,
-     а карточки bento лежат в .masonry и оставались без него.
-     Шаг 30мс вместо 45: весь вход укладывается в полсекунды. */
-  .dash-born .widget-grid > *:nth-child(1),
-  .dash-born .masonry > *:nth-child(1) { animation-delay: 0ms; }
-  .dash-born .widget-grid > *:nth-child(2),
-  .dash-born .masonry > *:nth-child(2) { animation-delay: 30ms; }
-  .dash-born .widget-grid > *:nth-child(3),
-  .dash-born .masonry > *:nth-child(3) { animation-delay: 60ms; }
-  .dash-born .widget-grid > *:nth-child(4),
-  .dash-born .masonry > *:nth-child(4) { animation-delay: 90ms; }
-  .dash-born .widget-grid > *:nth-child(5),
-  .dash-born .masonry > *:nth-child(5) { animation-delay: 120ms; }
-  .dash-born .widget-grid > *:nth-child(6),
-  .dash-born .masonry > *:nth-child(6) { animation-delay: 150ms; }
-  .dash-born .widget-grid > *:nth-child(n+7),
-  .dash-born .masonry > *:nth-child(n+7) { animation-delay: 180ms; }
-
   .dash-born .sidebar {
-    animation: dash-side 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: dash-side 520ms cubic-bezier(0.16, 1, 0.3, 1) both !important;
   }
 
   /* Контент приходит НАВСТРЕЧУ: стартует дальше в глубине и всплывает
@@ -506,16 +496,18 @@
 
 /* ---------- Проваливание в глубину ----------
    Каркас уходит внутрь экрана: камера «входит» в дашборд, а не просто
-   гасит картинку. Перспектива на контейнере, слои уезжают по Z. */
+   гасит картинку. Точка схода совпадает с центром знака (50%/50%),
+   иначе масштаб расходится из угла и композиция едет вбок. */
 .preloader {
   perspective: 1200px;
-  perspective-origin: 50% 46%;
+  perspective-origin: 50% 50%;
 }
 
 .preloader .pl-frame,
 .preloader .pl-core,
 .preloader .pl-aurora {
   transform-style: preserve-3d;
+  transform-origin: 50% 50%;
   transition:
     transform 520ms cubic-bezier(0.16, 1, 0.3, 1),
     opacity 520ms cubic-bezier(0.16, 1, 0.3, 1),

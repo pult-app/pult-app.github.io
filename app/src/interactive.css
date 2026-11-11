@@ -48,12 +48,45 @@
     transition: transform 280ms var(--ease-out), box-shadow 280ms var(--ease-out);
   }
 
-  /* Скрыты, пока наблюдатель не отметит появление */
-  .widget-grid.reveal > * {
+  /* Первый показ идёт через прелоадер: там свой вход (dash-born).
+     Пока живёт .dash-wait или .dash-born, наблюдатель IntersectionObserver
+     не должен трогать ни прозрачность, ни анимацию - иначе два правила
+     борются за одно свойство и карточки мерцают.
+     !important оправдан: правило в preloader.css обязано победить всегда,
+     иначе card-in перебивает вход и экран пустует. */
+  .dash-wait .widget-grid > *,
+  .dash-wait .masonry > *,
+  .dash-wait .widget-hero,
+  .dash-born .widget-grid > *,
+  .dash-born .masonry > *,
+  .dash-born .widget-hero {
+    animation: none !important;
+  }
+
+  .dash-wait .widget-grid > *,
+  .dash-wait .masonry > * {
     opacity: 0;
   }
 
-  .widget-grid.reveal > *.in {
+  /* В .dash-born прозрачностью владеет анимация dash-born из preloader.css:
+     статичное opacity здесь перебивало бы её и вход не проигрывался. */
+
+  /* Обычный режим, без прелоадера: скрыты, пока наблюдатель не отметит */
+  .widget-grid.reveal:not(.dash-wait):not(.dash-born) > * {
+    opacity: 0;
+  }
+
+  /* Только вне прелоадерного входа: при .dash-wait/.dash-born прозрачностью
+     владеет dash-born, иначе это правило перебивало его и карточки
+     мигали 100 -> 0 -> 100. */
+  .dash-wait .widget-grid.reveal > *.in,
+  .dash-born .widget-grid.reveal > *.in,
+  .dash-wait .widget-grid.reveal > *,
+  .dash-born .widget-grid.reveal > * {
+    animation: none !important;
+  }
+
+  .widget-grid.reveal:not(.dash-wait):not(.dash-born) > *.in {
     opacity: 1;
     animation: card-in 640ms var(--ease-out) backwards;
     animation-delay: calc(var(--d, 0) * 80ms);
