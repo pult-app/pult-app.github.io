@@ -84,6 +84,24 @@ export function Preloader({ done, onGone }: { done: boolean; inline?: boolean; o
               } as CSSProperties}
             >
               <span className="pl-card-glow" />
+              {/* Силуэт данных внутри блока: заголовок, строки или столбики.
+                  Пустые прямоугольники выглядели скучно, а так каркас
+                  читается как настоящий дашборд до загрузки. */}
+              {i === 1 ? (
+                <span className="pl-spark" aria-hidden>
+                  <svg viewBox="0 0 100 40" preserveAspectRatio="none">
+                    <path d="M0,32 C10,32 14,20 22,18 C30,16 34,26 42,24 C50,22 54,8 62,10 C70,12 74,22 82,20 C90,18 94,26 100,24" />
+                  </svg>
+                </span>
+              ) : i === 0 ? (
+                <span className="pl-lines" aria-hidden><i /><i style={{ width: '58%' }} /></span>
+              ) : (
+                <span className="pl-lines" aria-hidden>
+                  <i style={{ width: '42%' }} />
+                  <i style={{ width: '72%' }} />
+                  <i style={{ width: '56%' }} />
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -91,6 +109,9 @@ export function Preloader({ done, onGone }: { done: boolean; inline?: boolean; o
 
       <div className="pl-core">
         <div className="pl-halo" aria-hidden />
+        {/* Кольца-волны: расходятся от знака, дают живость сцене */}
+        <span className="pl-ring" aria-hidden />
+        <span className="pl-ring pl-ring-2" aria-hidden />
         <div className="pl-mark">
           <span>П</span>
           <span className="pl-sheen" aria-hidden />

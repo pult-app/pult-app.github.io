@@ -71,6 +71,19 @@
   /* В .dash-born прозрачностью владеет анимация dash-born из preloader.css:
      статичное opacity здесь перебивало бы её и вход не проигрывался. */
 
+  /* Пока данных нет (.dash-loading) внутри живёт каркас прелоадера -
+     живой контент скрыт полностью, иначе было видно, как он мелькает
+     на 100% и только потом въезжает. Это и давало рывок. */
+  .dash-loading .widget-grid > *,
+  .dash-loading .masonry > *,
+  .dash-loading .widget-hero,
+  .dash-wait .widget-grid > *,
+  .dash-wait .masonry > *,
+  .dash-wait .widget-hero {
+    opacity: 0 !important;
+    animation: none !important;
+  }
+
   /* Обычный режим, без прелоадера: скрыты, пока наблюдатель не отметит */
   .widget-grid.reveal:not(.dash-wait):not(.dash-born) > * {
     opacity: 0;
