@@ -282,7 +282,7 @@ export default function App() {
         <button className="chip" aria-pressed={!cards} onClick={() => setCards(false)}>Работы</button>
         <button className="chip" aria-pressed={cards} onClick={() => setCards(true)}>Карточки{dueCards ? ' ' + dueCards : ''}</button>
       </div>
-      {cards ? <Trainer data={data} canWrite={canWrite} onGrade={onGrade} /> : <Study data={data} canWrite={canWrite} focus={openWork}
+      {cards ? <Trainer key="trainer" data={data} canWrite={canWrite} onGrade={onGrade} /> : <Study key="study" data={data} canWrite={canWrite} focus={openWork}
         onStatus={(id, s) => act(() => update('study_work', id, { status: s, updated_by: 'owner' }))}
         onSave={(id, patch) => act(() => update('study_work', id, { ...patch, updated_by: 'owner' }))}
         onAdd={w => act(async () => {
@@ -336,7 +336,7 @@ export default function App() {
               <button className="chip" aria-pressed={!cards} onClick={() => setCards(false)}>Работы</button>
               <button className="chip" aria-pressed={cards} onClick={() => setCards(true)}>Карточки{dueCards ? ' ' + dueCards : ''}</button>
             </div>
-            {cards ? <Trainer data={data} canWrite={canWrite} onGrade={onGrade} /> : <Study data={data} canWrite={canWrite} focus={openWork}
+            {cards ? <Trainer key="trainer" data={data} canWrite={canWrite} onGrade={onGrade} /> : <Study key="study" data={data} canWrite={canWrite} focus={openWork}
               onStatus={(id, s) => act(() => update('study_work', id, { status: s, updated_by: 'owner' }))}
               onSave={(id, patch) => act(() => update('study_work', id, { ...patch, updated_by: 'owner' }))}
               onAdd={w => act(async () => {
