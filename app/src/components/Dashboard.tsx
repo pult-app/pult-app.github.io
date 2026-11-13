@@ -163,7 +163,32 @@ function SubDetail({ data, id }: { data: PultData; id: string }) {
 }
 
 export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, error, onDismissError, onMessageDone, badges, reveal = true, renderTab, renderScreen }: Props) {
-  const [view, setView] = useState<View>('dashboard')
+  // Вкладка восстанавливается из адреса и пишется обратно: раньше состояние
+  // жило только в памяти, и после перезагрузки всегда открывался дашборд.
+  const [view, setViewState] = useState<View>(() => {
+    const h = location.hash.replace('#', '')
+    const known = ['dashboard', 'funnel', 'inbox', 'study', 'money', 'insights', 'settings']
+    return (known.includes(h) ? h : 'dashboard') as View
+  })
+  const setView = (v: View) => {
+    setViewState(v)
+    try {
+      history.replaceState(null, '', v === 'dashboard' ? location.pathname + location.search : '#' + v)
+    } catch { /* адрес может быть недоступен в песочнице */ }
+  }
+  // Назад/вперёд в браузере тоже переключает вкладки
+  useEffect(() => {
+    const onPop = () => {
+      const h = location.hash.replace('#', '')
+      setViewState((h || 'dashboard') as View)
+    }
+    window.addEventListener('popstate', onPop)
+    window.addEventListener('hashchange', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      window.removeEventListener('hashchange', onPop)
+    }
+  }, [])
   const [detail, setDetail] = useState<Detail | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -245,6 +270,9 @@ export function Dashboard({ data, canWrite: _canWrite, goto, status, loaded, err
   return (
     <>
     <div className={'dash' + (reveal ? ' dash-born' : ' dash-wait')} ref={rootRef}><Backdrop />
+      {/* Заголовок первого уровня для скринридеров: до этого на странице были
+          только h3, и структура документа читалась как плоский список. */}
+      <h1 className="sr-only">Пульт Германа — рабочий дашборд</h1>
       <Sidebar tab="dashboard" badges={badges} statusCls={status.cls} statusText={status.text} loaded={loaded} onPick={setView} />
 
       {/* key зависит от reveal: при смене прелоадерного состояния поддерево
